@@ -1,0 +1,199 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A1000001 = {isa = PBXBuildFile; fileRef = A2000001; };
+		A1000002 = {isa = PBXBuildFile; fileRef = A2000002; };
+		A1000003 = {isa = PBXBuildFile; fileRef = A2000003; };
+		A1000004 = {isa = PBXBuildFile; fileRef = A2000004; };
+		A1000005 = {isa = PBXBuildFile; fileRef = A2000005; };
+		A1000006 = {isa = PBXBuildFile; fileRef = A2000006; };
+		A1000007 = {isa = PBXBuildFile; fileRef = A2000007; };
+		A1000008 = {isa = PBXBuildFile; fileRef = A2000008; };
+		A1000009 = {isa = PBXBuildFile; fileRef = A2000009; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A2000001 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HaloLayer.swift; sourceTree = "<group>"; };
+		A2000002 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HaloLayerDelegate.swift; sourceTree = "<group>"; };
+		A2000003 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityPermissionController.swift; sourceTree = "<group>"; };
+		A2000004 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderContextMonitor.swift; sourceTree = "<group>"; };
+		A2000005 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderItemMapper.swift; sourceTree = "<group>"; };
+		A2000006 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileMetadataProvider.swift; sourceTree = "<group>"; };
+		A2000007 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayWindowController.swift; sourceTree = "<group>"; };
+		A2000008 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayLabelView.swift; sourceTree = "<group>"; };
+		A2000009 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HaloLayerDiagnostic.swift; sourceTree = "<group>"; };
+		A2000010 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A2000011 = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HaloLayer.entitlements; sourceTree = "<group>"; };
+		A3000001 = {isa = PBXFileReference; explicitFileType = wrapper.application; path = HaloLayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A4000001 = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A5000001 = {
+			isa = PBXGroup;
+			children = (A5000002, A5000003);
+			sourceTree = "<group>";
+		};
+		A5000002 = {
+			isa = PBXGroup;
+			children = (A2000001, A2000002, A2000003, A2000004, A2000005, A2000006, A2000007, A2000008, A2000009, A2000010, A2000011);
+			path = HaloLayer;
+			sourceTree = "<group>";
+		};
+		A5000003 = {
+			isa = PBXGroup;
+			children = (A3000001);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A6000001 = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A8000001;
+			buildPhases = (A7000001, A4000001);
+			buildRules = ();
+			dependencies = ();
+			name = HaloLayer;
+			productName = HaloLayer;
+			productReference = A3000001;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A0000001 = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1610;
+				LastUpgradeCheck = 1610;
+				TargetAttributes = { A6000001 = { CreatedOnToolsVersion = 16.0; }; };
+			};
+			buildConfigurationList = A8000002;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base);
+			mainGroup = A5000001;
+			productRefGroup = A5000003;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (A6000001);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A7000001 = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (A1000001, A1000002, A1000003, A1000004, A1000005, A1000006, A1000007, A1000008, A1000009);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A1100001 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = HaloLayer/HaloLayer.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HaloLayer/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/../Frameworks");
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.korwerks.halolayer;
+				PRODUCT_NAME = HaloLayer;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		A1100002 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = HaloLayer/HaloLayer.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = HaloLayer/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/../Frameworks");
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.korwerks.halolayer;
+				PRODUCT_NAME = HaloLayer;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		A1100003 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A1100004 = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A8000001 = {
+			isa = XCConfigurationList;
+			buildConfigurations = (A1100001, A1100002);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A8000002 = {
+			isa = XCConfigurationList;
+			buildConfigurations = (A1100003, A1100004);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A0000001;
+}

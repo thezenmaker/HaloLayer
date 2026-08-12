@@ -1,0 +1,11 @@
+.DS_Store
+.build/
+build/
+DerivedData/
+*.app
+*.app.zip
+*.dSYM
+*.xcarchive
+*.xcuserstate
+xcuserdata/
+HaloLayer.xcodeproj/project.xcworkspace/xcuserdata/
