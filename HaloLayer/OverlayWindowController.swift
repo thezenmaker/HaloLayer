@@ -11,7 +11,7 @@ final class OverlayWindowController {
     private var labelViews: [OverlayLabelView] = []
     private var badgeViews: [FolderCountBadgeView] = []
     private let overlayDispatchQueue = DispatchQueue(
-        label: "com.korwerks.halolayer.file-metadata-layer",
+        label: "com.korwerk.halolayer.file-metadata-layer",
         qos: .userInteractive
     )
 

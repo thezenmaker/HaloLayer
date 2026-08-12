@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key>
-    <string>com.korwerks.halolayerTests</string>
+    <string>com.korwerk.halolayerTests</string>
     <key>CFBundleName</key>
     <string>HaloLayerTests</string>
     <key>CFBundlePackageType</key>

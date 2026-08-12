@@ -17,9 +17,9 @@ final class FileMetadataProvider {
     private var folderCache: [URL: (size: Int64?, timestamp: TimeInterval)] = [:]
     private var dimensionCache: [URL: (value: String?, timestamp: TimeInterval)] = [:]
     private var folderCalculationsInFlight: Set<URL> = []
-    private let cacheDispatchQueue = DispatchQueue(label: "com.korwerks.halolayer.metadata-cache")
+    private let cacheDispatchQueue = DispatchQueue(label: "com.korwerk.halolayer.metadata-cache")
     private let folderSizeQueue = DispatchQueue(
-        label: "com.korwerks.halolayer.folder-size",
+        label: "com.korwerk.halolayer.folder-size",
         qos: .utility
     )
     private let cacheTTL: TimeInterval = 2 // seconds
