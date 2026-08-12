@@ -11,13 +11,13 @@ File sizes, image and video dimensions, folder sizes, and subtle item-count badg
 [![License MIT](https://img.shields.io/badge/License-MIT-63D391)](LICENSE)
 [![Status Preview](https://img.shields.io/badge/Status-Preview-8B7CF6)](#project-status)
 
-[Website](https://github.com/thezenmaker) · [Install](#installation) · [Privacy](#privacy-and-permissions) · [Contribute](CONTRIBUTING.md)
+[Website](https://zenmaker.io/halolayer) · [Install](#installation) · [Privacy](#privacy-and-permissions) · [Contribute](CONTRIBUTING.md)
 
 </div>
 
 ![HaloLayer showing metadata and a folder-count badge in Finder](docs/halolayer-preview.svg)
 
-HaloLayer is a small native macOS menu-bar utility from [Johanna Zhou / ZenMaker](https://github.com/thezenmaker). It makes Finder's Icon View more informative without turning file browsing into a dashboard—making complexity feel simple.
+HaloLayer is a small native macOS menu-bar utility from [Johanna Zhou / ZenMaker](https://zenmaker.io). It makes Finder's Icon View more informative without turning file browsing into a dashboard—making complexity feel simple.
 
 ## What it adds
 
@@ -105,13 +105,13 @@ HaloLayer is an early preview. Finder's Accessibility hierarchy is not a public 
 
 ## About
 
-Built by [Johanna Zhou / ZenMaker](https://github.com/thezenmaker)—designing tools that make complexity feel simple.
+Built by [Johanna Zhou / ZenMaker](https://zenmaker.io)—designing tools that make complexity feel simple.
 
 HaloLayer remains fully functional without visiting the website.
 
 ## More tools
 
-Explore more work from [ZenMaker](https://github.com/thezenmaker).
+Explore more work from [ZenMaker](https://zenmaker.io).
 
 ## License
 

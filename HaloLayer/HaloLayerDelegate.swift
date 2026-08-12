@@ -84,14 +84,10 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
             withLength: NSStatusItem.variableLength
         )
 
-        // Create a visible status item image (a small circle)
-        let size = NSSize(width: 18, height: 18)
-        let image = NSImage(size: size)
-        image.lockFocus()
-        NSColor.systemGray.set()
-        NSBezierPath(ovalIn: .init(x: 3, y: 3, width: 12, height: 12)).fill()
-        image.unlockFocus()
-        statusItem.button?.image = image
+        statusItem.button?.image = makeHaloStatusImage(
+            color: .systemGray,
+            diameter: 12
+        )
 
         statusMenu = NSMenu()
         statusMenu.addItem(makeMetadataToggleRow())
@@ -188,19 +184,34 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
 
         // Update status item button icon/text
         if let button = statusItem.button {
-            // Set a visible colored circle as the status item icon
-            let size = NSSize(width: 20, height: 20)
-            let image = NSImage(size: size)
-            image.lockFocus()
             let anyLayerActive = metadataLayerEnabled || isFolderCountsEnabled
             let color: NSColor = (anyLayerActive && permissionGranted)
                 ? NSColor.green : NSColor.systemGray
-            color.set()
-            NSBezierPath(ovalIn: NSRect(x: 3, y: 3, width: 14, height: 14)).fill()
-            image.unlockFocus()
-            button.image = image
+            button.image = makeHaloStatusImage(color: color, diameter: 14)
             button.toolTip = "HaloLayer — " + permMessage
         }
+    }
+
+    /// Temporary menu-bar mark. Replace this renderer with the final uploaded
+    /// HaloLayer artwork while keeping the same 20 × 20 point canvas.
+    private func makeHaloStatusImage(color: NSColor, diameter: CGFloat) -> NSImage {
+        let canvas = NSSize(width: 20, height: 20)
+        let image = NSImage(size: canvas)
+        let ringRect = NSRect(
+            x: (canvas.width - diameter) / 2,
+            y: (canvas.height - diameter) / 2,
+            width: diameter,
+            height: diameter
+        )
+
+        image.lockFocus()
+        color.setStroke()
+        let halo = NSBezierPath(ovalIn: ringRect.insetBy(dx: 1.25, dy: 1.25))
+        halo.lineWidth = 2.5
+        halo.stroke()
+        image.unlockFocus()
+
+        return image
     }
 
     // MARK: — Menu actions
