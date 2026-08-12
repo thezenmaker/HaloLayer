@@ -10,7 +10,11 @@ let package = Package(
         .executableTarget(
             name: "HaloLayer",
             path: "HaloLayer",
-            exclude: ["Info.plist", "HaloLayer.entitlements"]
+            exclude: [
+                "Info.plist",
+                "HaloLayer.entitlements",
+                "Assets.xcassets"
+            ]
         ),
         .testTarget(
             name: "HaloLayerTests",

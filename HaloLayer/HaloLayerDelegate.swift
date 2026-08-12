@@ -20,6 +20,7 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
     private var folderCountSwitch: NSSwitch!
     private var quitMenuItem: NSMenuItem!
     private var permissionMenuItem: NSMenuItem!
+    private var gettingStartedController: GettingStartedWindowController?
 
     // MARK: — State
     private var isFileSizeEnabled: Bool = true
@@ -46,6 +47,7 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         // Setup menu bar
         setupStatusBar()
         _ = permissionController.checkPermission()
+        showGettingStartedIfNeeded()
 
         // Setup context monitor
         contextMonitor.onContextChange = { [weak self] context in
@@ -84,10 +86,7 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
             withLength: NSStatusItem.variableLength
         )
 
-        statusItem.button?.image = makeHaloStatusImage(
-            color: .systemGray,
-            diameter: 12
-        )
+        statusItem.button?.image = makeHaloStatusImage()
 
         statusMenu = NSMenu()
         statusMenu.addItem(makeMetadataToggleRow())
@@ -101,6 +100,13 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         permissionMenuItem.target = self
 
         statusMenu.addItem(NSMenuItem.separator())
+
+        let gettingStartedItem = statusMenu.addItem(
+            withTitle: "Getting Started…",
+            action: #selector(showGettingStarted),
+            keyEquivalent: ""
+        )
+        gettingStartedItem.target = self
 
         quitMenuItem = statusMenu.addItem(
             withTitle: "Quit HaloLayer",
@@ -187,31 +193,39 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
             let anyLayerActive = metadataLayerEnabled || isFolderCountsEnabled
             let color: NSColor = (anyLayerActive && permissionGranted)
                 ? NSColor.green : NSColor.systemGray
-            button.image = makeHaloStatusImage(color: color, diameter: 14)
+            button.image = makeHaloStatusImage()
+            button.contentTintColor = color
             button.toolTip = "HaloLayer — " + permMessage
         }
     }
 
-    /// Temporary menu-bar mark. Replace this renderer with the final uploaded
-    /// HaloLayer artwork while keeping the same 20 × 20 point canvas.
-    private func makeHaloStatusImage(color: NSColor, diameter: CGFloat) -> NSImage {
-        let canvas = NSSize(width: 20, height: 20)
-        let image = NSImage(size: canvas)
-        let ringRect = NSRect(
-            x: (canvas.width - diameter) / 2,
-            y: (canvas.height - diameter) / 2,
-            width: diameter,
-            height: diameter
-        )
-
-        image.lockFocus()
-        color.setStroke()
-        let halo = NSBezierPath(ovalIn: ringRect.insetBy(dx: 1.25, dy: 1.25))
-        halo.lineWidth = 2.5
-        halo.stroke()
-        image.unlockFocus()
-
+    private func makeHaloStatusImage() -> NSImage? {
+        guard let image = NSImage(named: "HaloLayerMenuIcon")?.copy() as? NSImage else {
+            return nil
+        }
+        image.size = NSSize(width: 20, height: 20)
+        image.isTemplate = true
         return image
+    }
+
+    // MARK: — Getting started
+
+    private func showGettingStartedIfNeeded() {
+        guard !UserDefaults.standard.bool(forKey: "didCompleteGettingStarted") else {
+            return
+        }
+        showGettingStarted()
+    }
+
+    @objc private func showGettingStarted() {
+        if gettingStartedController == nil {
+            gettingStartedController = GettingStartedWindowController(
+                permissionController: permissionController
+            )
+        }
+        gettingStartedController?.showWindow(nil)
+        gettingStartedController?.window?.center()
+        NSApplication.shared.activate(ignoringOtherApps: true)
     }
 
     // MARK: — Menu actions

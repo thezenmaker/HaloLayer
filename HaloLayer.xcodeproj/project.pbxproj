@@ -15,6 +15,8 @@
 		A1000007 = {isa = PBXBuildFile; fileRef = A2000007; };
 		A1000008 = {isa = PBXBuildFile; fileRef = A2000008; };
 		A1000009 = {isa = PBXBuildFile; fileRef = A2000009; };
+		A1000010 = {isa = PBXBuildFile; fileRef = A2000012; };
+		A1000011 = {isa = PBXBuildFile; fileRef = A2000013; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -29,6 +31,8 @@
 		A2000009 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HaloLayerDiagnostic.swift; sourceTree = "<group>"; };
 		A2000010 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A2000011 = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HaloLayer.entitlements; sourceTree = "<group>"; };
+		A2000012 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GettingStartedWindowController.swift; sourceTree = "<group>"; };
+		A2000013 = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A3000001 = {isa = PBXFileReference; explicitFileType = wrapper.application; path = HaloLayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -49,7 +53,7 @@
 		};
 		A5000002 = {
 			isa = PBXGroup;
-			children = (A2000001, A2000002, A2000003, A2000004, A2000005, A2000006, A2000007, A2000008, A2000009, A2000010, A2000011);
+			children = (A2000001, A2000002, A2000012, A2000003, A2000004, A2000005, A2000006, A2000007, A2000008, A2000009, A2000010, A2000011, A2000013);
 			path = HaloLayer;
 			sourceTree = "<group>";
 		};
@@ -65,7 +69,7 @@
 		A6000001 = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = A8000001;
-			buildPhases = (A7000001, A4000001);
+			buildPhases = (A7000001, A4000001, A7000002);
 			buildRules = ();
 			dependencies = ();
 			name = HaloLayer;
@@ -101,15 +105,25 @@
 		A7000001 = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (A1000001, A1000002, A1000003, A1000004, A1000005, A1000006, A1000007, A1000008, A1000009);
+			files = (A1000001, A1000002, A1000010, A1000003, A1000004, A1000005, A1000006, A1000007, A1000008, A1000009);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A7000002 = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (A1000011);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
 		A1100001 = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = HaloLayer/HaloLayer.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
@@ -131,6 +145,7 @@
 		A1100002 = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = HaloLayer/HaloLayer.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
