@@ -33,8 +33,9 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
     private let fileSizePreferenceKey = "fileSizeEnabled"
     private let resolutionPreferenceKey = "fileResolutionEnabled"
     private let folderCountsPreferenceKey = "folderCountLayerEnabled"
-    private let completedGuideVersionKey = "didCompleteGettingStartedVersion"
-    private let currentGuideVersion = 2
+    private let completedGuideKey = "didCompleteGettingStarted"
+    private let presentedGuideKey = "didPresentGettingStarted"
+    private let legacyCompletedGuideVersionKey = "didCompleteGettingStartedVersion"
 
     // MARK: — NSApplicationDelegate
 
@@ -51,9 +52,7 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         // Setup menu bar
         setupStatusBar()
         _ = permissionController.checkPermission()
-        DispatchQueue.main.async { [weak self] in
-            self?.showGettingStartedIfNeeded()
-        }
+        presentInitialGuideWhenReady()
 
         // Setup context monitor
         contextMonitor.onContextChange = { [weak self] context in
@@ -208,11 +207,8 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
 
         // Update status item button icon/text
         if let button = statusItem.button {
-            let anyLayerActive = metadataLayerEnabled || isFolderCountsEnabled
-            let color: NSColor = (anyLayerActive && permissionGranted)
-                ? NSColor.controlAccentColor : NSColor.systemGray
             button.image = makeHaloStatusImage()
-            button.contentTintColor = color
+            button.contentTintColor = nil
             button.toolTip = "HaloLayer — " + permMessage
         }
     }
@@ -229,24 +225,61 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
     // MARK: — Getting started
 
     private func showGettingStartedIfNeeded() {
-        guard UserDefaults.standard.integer(forKey: completedGuideVersionKey) < currentGuideVersion else {
-            return
-        }
-        guard gettingStartedController?.window?.isVisible != true else {
+        let defaults = UserDefaults.standard
+        migrateLegacyGuideCompletionIfNeeded(defaults)
+        guard !defaults.bool(forKey: presentedGuideKey) else {
             return
         }
         showGettingStarted()
+        defaults.set(true, forKey: presentedGuideKey)
+    }
+
+    private func presentInitialGuideWhenReady() {
+        DispatchQueue.main.async { [weak self] in
+            self?.showGettingStartedIfNeeded()
+        }
+
+        // Gatekeeper can finish handing focus back a moment after launch.
+        // Reassert the already-visible first-run window once, without ever
+        // presenting the guide again on later launches.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            guard let self,
+                  !UserDefaults.standard.bool(forKey: self.completedGuideKey),
+                  self.gettingStartedController?.window?.isVisible == true else { return }
+            self.bringGettingStartedToFront()
+        }
+    }
+
+    private func migrateLegacyGuideCompletionIfNeeded(_ defaults: UserDefaults) {
+        guard defaults.object(forKey: presentedGuideKey) == nil else { return }
+        if defaults.bool(forKey: completedGuideKey)
+            || defaults.integer(forKey: legacyCompletedGuideVersionKey) >= 2 {
+            defaults.set(true, forKey: presentedGuideKey)
+            defaults.set(true, forKey: completedGuideKey)
+        }
+    }
+
+    private func bringGettingStartedToFront() {
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        gettingStartedController?.window?.makeKeyAndOrderFront(nil)
+        gettingStartedController?.window?.orderFrontRegardless()
     }
 
     @objc private func showGettingStarted() {
         if gettingStartedController == nil {
             gettingStartedController = GettingStartedWindowController(
-                permissionController: permissionController
+                permissionController: permissionController,
+                onCompletion: { [weak self] in
+                    guard let self else { return }
+                    UserDefaults.standard.set(true, forKey: self.presentedGuideKey)
+                    self.updateStatusBar()
+                    self.refreshForLayerChange()
+                }
             )
         }
         gettingStartedController?.showWindow(nil)
         gettingStartedController?.window?.center()
-        NSApplication.shared.activate(ignoringOtherApps: true)
+        bringGettingStartedToFront()
     }
 
     // MARK: — Menu actions

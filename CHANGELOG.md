@@ -14,6 +14,9 @@ All notable HaloLayer changes will be documented here.
 - Preserved macOS 14 compatibility in Finder viewport grouping.
 - Repaired and enabled the complete unit test suite.
 - Added an **Open Privacy & Security** download shortcut to simplify Gatekeeper approval.
+- Made first-run guide presentation reliable after Gatekeeper approval and automatic only once.
+- Made Finder-step completion and the **Finish Setup** button respond immediately.
+- Preserved layer toggles between launches and kept enabled switches visibly blue.
 
 ## 0.1.0 — 2026-08-13
 

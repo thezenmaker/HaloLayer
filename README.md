@@ -74,7 +74,7 @@ In Xcode, select the **HaloLayer** scheme and press **Run**. If Xcode asks for a
 
 After replacing or rebuilding the app, macOS may treat it as a new binary and ask you to re-enable Accessibility access.
 
-After macOS allows the app and HaloLayer opens, the guided setup assistant appears automatically. It explains the permission, opens the correct Accessibility settings pane, detects when access is granted, opens Finder, and shows where to control each layer. You can reopen it later from **Getting Started…** in the halo menu.
+After macOS allows the app and HaloLayer opens, the guided setup assistant appears automatically on the first run. It explains the permission, opens the correct Accessibility settings pane, detects when access is granted, and opens Finder. HaloLayer remembers completion and every layer setting on later launches. You can reopen the guide manually from **Getting Started…** in the halo menu.
 
 ## Privacy and permissions
 

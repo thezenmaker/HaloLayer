@@ -2,23 +2,27 @@ import AppKit
 
 final class GettingStartedWindowController: NSWindowController, NSWindowDelegate {
     private let permissionController: AccessibilityPermissionController
-    private let permissionBadge = NSTextField(labelWithString: "1")
+    private let permissionBadge = StepBadgeView(text: "1")
     private let permissionStatus = NSTextField(labelWithString: "Checking…")
     private let permissionButton = NSButton(title: "Allow Accessibility", target: nil, action: nil)
-    private let finderBadge = NSTextField(labelWithString: "2")
+    private let finderBadge = StepBadgeView(text: "2")
     private let finderStatus = NSTextField(labelWithString: "Ready")
     private let finderButton = NSButton(title: "Open Finder", target: nil, action: nil)
     private let doneButton = NSButton(title: "Finish Setup", target: nil, action: nil)
     private var permissionPollTimer: Timer?
     private var lastPermissionGranted: Bool?
     private var didOpenFinder = false
+    private let onCompletion: () -> Void
 
     private let didRequestPermissionKey = "didRequestAccessibilityPermission"
-    private let completedGuideVersionKey = "didCompleteGettingStartedVersion"
-    private let currentGuideVersion = 2
+    private let completedGuideKey = "didCompleteGettingStarted"
 
-    init(permissionController: AccessibilityPermissionController) {
+    init(
+        permissionController: AccessibilityPermissionController,
+        onCompletion: @escaping () -> Void
+    ) {
         self.permissionController = permissionController
+        self.onCompletion = onCompletion
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 660, height: 580),
@@ -26,7 +30,7 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
             backing: .buffered,
             defer: false
         )
-        window.title = "Set Guide HaloLayer"
+        window.title = "HaloLayer Setup Guide"
         window.isReleasedWhenClosed = false
         window.backgroundColor = .windowBackgroundColor
 
@@ -45,6 +49,8 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
         startPermissionPolling()
         super.showWindow(sender)
         window?.makeKeyAndOrderFront(sender)
+        window?.orderFrontRegardless()
+        NSApplication.shared.activate(ignoringOtherApps: true)
     }
 
     func windowWillClose(_ notification: Notification) {
@@ -94,7 +100,6 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
         privacyNotice.layer?.cornerRadius = 10
         privacyNotice.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
 
-        styleStepBadge(permissionBadge)
         permissionStatus.font = .systemFont(ofSize: 12, weight: .medium)
         permissionStatus.textColor = .secondaryLabelColor
         permissionButton.target = self
@@ -110,7 +115,6 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
         finderButton.action = #selector(openFinder)
         finderButton.bezelStyle = .rounded
 
-        styleStepBadge(finderBadge)
         finderStatus.font = .systemFont(ofSize: 12, weight: .medium)
         finderStatus.textColor = .secondaryLabelColor
 
@@ -183,18 +187,7 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
     }
 
     private func makeStep(
-        number: String,
-        title: String,
-        detail: String,
-        accessory: NSView? = nil
-    ) -> NSView {
-        let badge = NSTextField(labelWithString: number)
-        styleStepBadge(badge)
-        return makeStep(badge: badge, title: title, detail: detail, accessory: accessory)
-    }
-
-    private func makeStep(
-        badge: NSTextField,
+        badge: StepBadgeView,
         title: String,
         detail: String,
         accessory: NSView? = nil
@@ -231,17 +224,6 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
         return row
     }
 
-    private func styleStepBadge(_ badge: NSTextField) {
-        badge.font = .monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
-        badge.alignment = .center
-        badge.textColor = .labelColor
-        badge.wantsLayer = true
-        badge.layer?.cornerRadius = 16
-        badge.layer?.borderWidth = 1
-        badge.layer?.borderColor = NSColor.separatorColor.cgColor
-        badge.translatesAutoresizingMaskIntoConstraints = false
-    }
-
     private func startPermissionPolling() {
         stopPermissionPolling()
         let timer = Timer(timeInterval: 0.75, repeats: true) { [weak self] _ in
@@ -262,9 +244,7 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
         lastPermissionGranted = granted
         permissionStatus.stringValue = granted ? "Granted" : "Required"
         permissionStatus.textColor = granted ? .systemGreen : .secondaryLabelColor
-        permissionBadge.stringValue = granted ? "✓" : "1"
-        permissionBadge.textColor = granted ? .systemGreen : .labelColor
-        permissionBadge.layer?.borderColor = (granted ? NSColor.systemGreen : NSColor.separatorColor).cgColor
+        permissionBadge.setCompleted(granted, pendingText: "1")
         permissionButton.isHidden = granted
         finderButton.isEnabled = granted
         doneButton.isEnabled = granted && didOpenFinder
@@ -293,23 +273,58 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
     }
 
     @objc private func openFinder() {
-        NSWorkspace.shared.open(URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true))
         didOpenFinder = true
         finderStatus.stringValue = "Opened"
         finderStatus.textColor = .systemGreen
-        finderBadge.stringValue = "✓"
-        finderBadge.textColor = .systemGreen
-        finderBadge.layer?.borderColor = NSColor.systemGreen.cgColor
-        doneButton.isEnabled = permissionController.checkPermission() == .granted
+        finderBadge.setCompleted(true, pendingText: "2")
+        doneButton.isEnabled = true
+        NSWorkspace.shared.open(URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true))
     }
 
     @objc private func finish() {
         guard permissionController.checkPermission() == .granted else { return }
-        UserDefaults.standard.set(currentGuideVersion, forKey: completedGuideVersionKey)
+        UserDefaults.standard.set(true, forKey: completedGuideKey)
+        onCompletion()
         window?.close()
     }
 
     @objc private func setUpLater() {
         window?.close()
+    }
+}
+
+private final class StepBadgeView: NSView {
+    private let label: NSTextField
+
+    init(text: String) {
+        label = NSTextField(labelWithString: text)
+        super.init(frame: .zero)
+
+        wantsLayer = true
+        layer?.cornerRadius = 16
+        layer?.borderWidth = 1
+        layer?.borderColor = NSColor.separatorColor.cgColor
+        translatesAutoresizingMaskIntoConstraints = false
+
+        label.font = .monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
+        label.alignment = .center
+        label.textColor = .labelColor
+        label.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(label)
+
+        NSLayoutConstraint.activate([
+            label.centerXAnchor.constraint(equalTo: centerXAnchor),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor)
+        ])
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func setCompleted(_ completed: Bool, pendingText: String) {
+        label.stringValue = completed ? "✓" : pendingText
+        label.textColor = completed ? .systemGreen : .labelColor
+        layer?.borderColor = (completed ? NSColor.systemGreen : NSColor.separatorColor).cgColor
     }
 }
