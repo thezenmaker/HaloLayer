@@ -34,15 +34,15 @@ Everything runs locally. HaloLayer does not require an account or transmit file 
 
 HaloLayer is not yet signed or notarized with a paid Apple Developer certificate. Choose the path that fits you.
 
-### For normal users — download the unsigned app
+### For normal users — download the DMG
 
-Download `HaloLayer-v0.1.1-macos-universal.zip` from the **Assets** section of the [latest GitHub Release](https://github.com/thezenmaker/HaloLayer/releases/latest), unzip it, and move `HaloLayer.app` to Applications. The download also includes an **Open Privacy & Security** shortcut for the first launch. Xcode and an Apple Developer account are not required. This universal preview build supports Apple Silicon and Intel Macs.
+Download `HaloLayer-v0.1.1-macos-universal.dmg` from the **Assets** section of the [latest GitHub Release](https://github.com/thezenmaker/HaloLayer/releases/latest), open it, and drag `HaloLayer.app` onto Applications. The DMG also includes an **Open Privacy & Security** shortcut and a short installation guide. Xcode and an Apple Developer account are not required. This universal preview build supports Apple Silicon and Intel Macs.
 
 > Do not choose GitHub's automatically generated **Source code (zip)** or use **Code → Download ZIP** unless you want the source files. Those downloads do not contain the ready-to-run app.
 
 Because the app is unsigned and not notarized, macOS will probably block the first launch. If—and only if—you downloaded it from this official repository:
 
-1. Move `HaloLayer.app` to Applications.
+1. Open the DMG and drag `HaloLayer.app` onto Applications.
 2. Open HaloLayer once and dismiss the macOS warning.
 3. Double-click **Open Privacy & Security** included in the download.
 4. Find the HaloLayer message and choose **Open Anyway → Open**.
@@ -50,8 +50,6 @@ Because the app is unsigned and not notarized, macOS will probably block the fir
 This approves this app only; do not disable Gatekeeper globally. macOS intentionally requires the final confirmation and HaloLayer cannot approve itself before it is allowed to run.
 
 HaloLayer requires Accessibility access to position metadata beside visible Finder icons. The source is public so you can inspect what that permission is used for before installing.
-
-> The ZIP is the recommended format for this early preview. A DMG would add a more polished drag-to-Applications presentation, but it would not remove the warning from an unsigned and unnotarized app.
 
 ### For developers — build from source with free Xcode
 
