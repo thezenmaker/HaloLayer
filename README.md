@@ -42,7 +42,7 @@ Download `HaloLayer-v0.1.1-macos-universal.dmg` from the **Assets** section of t
 
 Because the app is unsigned and not notarized, macOS will probably block the first launch. If—and only if—you downloaded it from this official repository:
 
-1. Open the DMG and drag `HaloLayer.app` onto Applications.
+1. Open the DMG, drag `HaloLayer.app` onto Applications, then eject the HaloLayer disk image. Dragging copies the app, so the source remains visible inside the DMG until it is ejected.
 2. Open HaloLayer once and dismiss the macOS warning.
 3. Double-click **Open Privacy & Security** included in the download.
 4. Find the HaloLayer message and choose **Open Anyway → Open**.

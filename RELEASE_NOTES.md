@@ -9,11 +9,13 @@
 - Opening Finder completes step 2 and enables **Finish Setup** immediately.
 - The download includes an **Open Privacy & Security** shortcut to Apple's built-in Security settings pane.
 - Normal users can install from a ready-made DMG with an Applications shortcut.
+- The setup guide appears once for this build, including for testers whose earlier HaloLayer preferences remain on the Mac.
+- Saved enabled switches remain interactive and blue after relaunching.
 
 ## Install the app
 
 1. Download `HaloLayer-v0.1.1-macos-universal.dmg` from **Assets**. Do not choose GitHub's generated source-code archives unless you want the source.
-2. Open the DMG and drag `HaloLayer.app` onto Applications.
+2. Open the DMG, drag `HaloLayer.app` onto Applications, then eject the HaloLayer disk image. The source app remains visible in the DMG until the image is ejected; this is normal macOS copy behavior.
 3. Open HaloLayer once and dismiss the macOS warning.
 4. Double-click **Open Privacy & Security** included beside the app.
 5. Find the HaloLayer message and choose **Open Anyway → Open**.

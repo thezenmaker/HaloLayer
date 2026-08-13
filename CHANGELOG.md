@@ -18,6 +18,8 @@ All notable HaloLayer changes will be documented here.
 - Made Finder-step completion and the **Finish Setup** button respond immediately.
 - Preserved layer toggles between launches and kept enabled switches visibly blue.
 - Added a ready-made DMG for normal-user installation without Xcode.
+- Presented onboarding once per internal build so retained preview preferences cannot suppress a newly corrected guide.
+- Disabled automatic menu-item validation so saved enabled switches remain interactive and blue after relaunching.
 
 ## 0.1.0 — 2026-08-13
 

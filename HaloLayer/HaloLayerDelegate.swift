@@ -28,14 +28,17 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
     private var isFolderCountsEnabled: Bool = false
     private var refreshTimer: Timer?
     private var navigationRetryWorkItem: DispatchWorkItem?
+    private var presentedGuideThisLaunch = false
     private let refreshInterval: TimeInterval = 1.0 / 30.0
     private let navigationSettleDelay: TimeInterval = 0.016
     private let fileSizePreferenceKey = "fileSizeEnabled"
     private let resolutionPreferenceKey = "fileResolutionEnabled"
     private let folderCountsPreferenceKey = "folderCountLayerEnabled"
-    private let completedGuideKey = "didCompleteGettingStarted"
-    private let presentedGuideKey = "didPresentGettingStarted"
-    private let legacyCompletedGuideVersionKey = "didCompleteGettingStartedVersion"
+    private let presentedGuideBuildKey = "didPresentGettingStartedBuild"
+
+    private var currentBuild: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
+    }
 
     // MARK: — NSApplicationDelegate
 
@@ -104,6 +107,7 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.image = makeHaloStatusImage()
 
         statusMenu = NSMenu()
+        statusMenu.autoenablesItems = false
         statusMenu.addItem(makeMetadataToggleRow())
         statusMenu.addItem(makeFolderToggleRow())
 
@@ -196,6 +200,9 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         sizeSwitch?.state = isFileSizeEnabled ? .on : .off
         resolutionSwitch?.state = isResolutionEnabled ? .on : .off
         folderCountSwitch?.state = isFolderCountsEnabled ? .on : .off
+        sizeSwitch?.isEnabled = true
+        resolutionSwitch?.isEnabled = true
+        folderCountSwitch?.isEnabled = true
 
         let permMessage = permissionController.statusMessage()
         let permissionGranted = permissionController.checkPermission() == .granted
@@ -226,12 +233,12 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
 
     private func showGettingStartedIfNeeded() {
         let defaults = UserDefaults.standard
-        migrateLegacyGuideCompletionIfNeeded(defaults)
-        guard !defaults.bool(forKey: presentedGuideKey) else {
+        guard defaults.string(forKey: presentedGuideBuildKey) != currentBuild else {
             return
         }
         showGettingStarted()
-        defaults.set(true, forKey: presentedGuideKey)
+        presentedGuideThisLaunch = true
+        defaults.set(currentBuild, forKey: presentedGuideBuildKey)
     }
 
     private func presentInitialGuideWhenReady() {
@@ -244,18 +251,9 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         // presenting the guide again on later launches.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
             guard let self,
-                  !UserDefaults.standard.bool(forKey: self.completedGuideKey),
+                  self.presentedGuideThisLaunch,
                   self.gettingStartedController?.window?.isVisible == true else { return }
             self.bringGettingStartedToFront()
-        }
-    }
-
-    private func migrateLegacyGuideCompletionIfNeeded(_ defaults: UserDefaults) {
-        guard defaults.object(forKey: presentedGuideKey) == nil else { return }
-        if defaults.bool(forKey: completedGuideKey)
-            || defaults.integer(forKey: legacyCompletedGuideVersionKey) >= 2 {
-            defaults.set(true, forKey: presentedGuideKey)
-            defaults.set(true, forKey: completedGuideKey)
         }
     }
 
@@ -271,7 +269,7 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
                 permissionController: permissionController,
                 onCompletion: { [weak self] in
                     guard let self else { return }
-                    UserDefaults.standard.set(true, forKey: self.presentedGuideKey)
+                    UserDefaults.standard.set(self.currentBuild, forKey: self.presentedGuideBuildKey)
                     self.updateStatusBar()
                     self.refreshForLayerChange()
                 }
