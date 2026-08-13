@@ -17,7 +17,7 @@ File sizes, image and video dimensions, folder sizes, and subtle item-count badg
 
 ![HaloLayer showing metadata and a folder-count badge in Finder](docs/halolayer-preview.svg)
 
-HaloLayer is a small native macOS menu-bar utility from [Johanna Zhou / ZenMaker](https://zenmaker.io). It makes Finder's Icon View more informative without turning file browsing into a dashboard—making complexity feel simple.
+HaloLayer is a free, open-source macOS utility that displays file sizes, media dimensions, and folder counts directly in native Finder Icon View.
 
 ## What it adds
 
