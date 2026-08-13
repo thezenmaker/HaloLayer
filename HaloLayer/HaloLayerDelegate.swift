@@ -33,6 +33,8 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
     private let fileSizePreferenceKey = "fileSizeEnabled"
     private let resolutionPreferenceKey = "fileResolutionEnabled"
     private let folderCountsPreferenceKey = "folderCountLayerEnabled"
+    private let completedGuideVersionKey = "didCompleteGettingStartedVersion"
+    private let currentGuideVersion = 2
 
     // MARK: — NSApplicationDelegate
 
@@ -49,7 +51,9 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         // Setup menu bar
         setupStatusBar()
         _ = permissionController.checkPermission()
-        showGettingStartedIfNeeded()
+        DispatchQueue.main.async { [weak self] in
+            self?.showGettingStartedIfNeeded()
+        }
 
         // Setup context monitor
         contextMonitor.onContextChange = { [weak self] context in
@@ -79,6 +83,10 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false  // Menu-bar app, no windows
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        showGettingStartedIfNeeded()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -219,7 +227,10 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
     // MARK: — Getting started
 
     private func showGettingStartedIfNeeded() {
-        guard !UserDefaults.standard.bool(forKey: "didCompleteGettingStarted") else {
+        guard UserDefaults.standard.integer(forKey: completedGuideVersionKey) < currentGuideVersion else {
+            return
+        }
+        guard gettingStartedController?.window?.isVisible != true else {
             return
         }
         showGettingStarted()

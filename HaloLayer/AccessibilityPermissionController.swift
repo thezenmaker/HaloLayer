@@ -2,6 +2,7 @@
 // Checks and requests Accessibility permission for HaloLayer.
 
 import ApplicationServices
+import AppKit
 import Foundation
 
 enum AccessibilityPermission {
@@ -53,19 +54,22 @@ final class AccessibilityPermissionController {
     }
 
     /// Open System Settings → Privacy & Security → Accessibility.
-    static func openAccessibilitySettings() {
-        // Try to open directly via AppleScript
-        let script = """
-        tell application "System Preferences"
-            set active pane to id "com.apple.preference.security"
-            reveal anchor "Privacy_Accessibility" of pane "com.apple.preference.security"
-            activate
-        end tell
-        """
-        var error: NSDictionary?
-        if let appleScript = NSAppleScript(source: script as String) {
-            appleScript.executeAndReturnError(&error)
+    @discardableResult
+    static func openAccessibilitySettings() -> Bool {
+        let destinations = [
+            "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+            "x-apple.systempreferences:com.apple.preference.security"
+        ]
+
+        for destination in destinations {
+            if let url = URL(string: destination), NSWorkspace.shared.open(url) {
+                return true
+            }
         }
+
+        return NSWorkspace.shared.open(
+            URL(fileURLWithPath: "/System/Applications/System Settings.app")
+        )
     }
 
     /// Returns a user-facing message about the current permission state.

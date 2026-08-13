@@ -8,8 +8,11 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
     private let finderButton = NSButton(title: "Open Finder", target: nil, action: nil)
     private let doneButton = NSButton(title: "Open Finder and Finish", target: nil, action: nil)
     private var permissionPollTimer: Timer?
+    private var lastPermissionGranted: Bool?
 
     private let didRequestPermissionKey = "didRequestAccessibilityPermission"
+    private let completedGuideVersionKey = "didCompleteGettingStartedVersion"
+    private let currentGuideVersion = 2
 
     init(permissionController: AccessibilityPermissionController) {
         self.permissionController = permissionController
@@ -246,6 +249,8 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
 
     private func refreshPermissionStatus() {
         let granted = permissionController.checkPermission() == .granted
+        let permissionWasJustGranted = lastPermissionGranted == false && granted
+        lastPermissionGranted = granted
         permissionStatus.stringValue = granted ? "Granted" : "Required"
         permissionStatus.textColor = granted ? .systemGreen : .secondaryLabelColor
         permissionBadge.stringValue = granted ? "✓" : "1"
@@ -258,6 +263,11 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
         if !granted {
             let hasRequested = UserDefaults.standard.bool(forKey: didRequestPermissionKey)
             permissionButton.title = hasRequested ? "Open System Settings" : "Allow Accessibility"
+        }
+
+        if permissionWasJustGranted {
+            window?.makeKeyAndOrderFront(nil)
+            NSApplication.shared.activate(ignoringOtherApps: true)
         }
     }
 
@@ -279,7 +289,7 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
 
     @objc private func finish() {
         guard permissionController.checkPermission() == .granted else { return }
-        UserDefaults.standard.set(true, forKey: "didCompleteGettingStarted")
+        UserDefaults.standard.set(currentGuideVersion, forKey: completedGuideVersionKey)
         openFinder()
         window?.close()
     }

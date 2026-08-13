@@ -2,6 +2,13 @@
 
 All notable HaloLayer changes will be documented here.
 
+## 0.1.2 — 2026-08-13
+
+- Ensured the setup assistant appears automatically after HaloLayer is allowed and launched.
+- Versioned onboarding completion so users of earlier previews see the corrected guide once.
+- Replaced the legacy Settings AppleScript with the native Accessibility deep link and fallback.
+- Restored the setup assistant to the foreground as soon as Accessibility access is granted.
+
 ## 0.1.1 — 2026-08-13
 
 - Added a guided first-launch assistant for non-developer installation.
