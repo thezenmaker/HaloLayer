@@ -11,7 +11,7 @@ File sizes, image and video dimensions, folder sizes, and subtle item-count badg
 [![License MIT](https://img.shields.io/badge/License-MIT-63D391)](LICENSE)
 [![Status Preview](https://img.shields.io/badge/Status-Preview-8B7CF6)](#project-status)
 
-[Website preview](https://zenmaker-website-git-agent-halolayer-product-page-zenmaker.vercel.app/halolayer) · [Install](#installation) · [Privacy](PRIVACY.md) · [Contribute](CONTRIBUTING.md)
+[Website preview](https://zenmaker-website-git-agent-halolayer-product-page-zenmaker.vercel.app/halolayer) · [Download app](https://github.com/thezenmaker/HaloLayer/releases/latest) · [Install](#installation) · [Privacy](PRIVACY.md) · [Contribute](CONTRIBUTING.md)
 
 </div>
 
@@ -36,7 +36,9 @@ HaloLayer is not yet signed or notarized with a paid Apple Developer certificate
 
 ### For normal users — download the unsigned app
 
-When a manually verified preview build is attached to [GitHub Releases](https://github.com/thezenmaker/HaloLayer/releases), download `HaloLayer-v0.1.0.zip`, unzip it, and move `HaloLayer.app` to Applications. Xcode and an Apple Developer account are not required.
+Download `HaloLayer-v0.1.0-macos-arm64.zip` from the **Assets** section of the [latest GitHub Release](https://github.com/thezenmaker/HaloLayer/releases/latest), unzip it, and move `HaloLayer.app` to Applications. Xcode and an Apple Developer account are not required. This preview build supports Apple Silicon Macs.
+
+> Do not choose GitHub's automatically generated **Source code (zip)** or use **Code → Download ZIP** unless you want the source files. Those downloads do not contain the ready-to-run app.
 
 Because the app is unsigned and not notarized, macOS will probably block the first launch. If—and only if—you downloaded it from this official repository, try to open HaloLayer once, then open **System Settings → Privacy & Security**, find the HaloLayer message, and choose **Open Anyway**. This approves this app only; do not disable Gatekeeper globally.
 
