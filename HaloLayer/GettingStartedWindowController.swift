@@ -5,10 +5,13 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
     private let permissionBadge = NSTextField(labelWithString: "1")
     private let permissionStatus = NSTextField(labelWithString: "Checking…")
     private let permissionButton = NSButton(title: "Allow Accessibility", target: nil, action: nil)
+    private let finderBadge = NSTextField(labelWithString: "2")
+    private let finderStatus = NSTextField(labelWithString: "Ready")
     private let finderButton = NSButton(title: "Open Finder", target: nil, action: nil)
-    private let doneButton = NSButton(title: "Open Finder and Finish", target: nil, action: nil)
+    private let doneButton = NSButton(title: "Finish Setup", target: nil, action: nil)
     private var permissionPollTimer: Timer?
     private var lastPermissionGranted: Bool?
+    private var didOpenFinder = false
 
     private let didRequestPermissionKey = "didRequestAccessibilityPermission"
     private let completedGuideVersionKey = "didCompleteGettingStartedVersion"
@@ -18,7 +21,7 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
         self.permissionController = permissionController
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 660, height: 660),
+            contentRect: NSRect(x: 0, y: 0, width: 660, height: 580),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -105,6 +108,15 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
         finderButton.action = #selector(openFinder)
         finderButton.bezelStyle = .rounded
 
+        styleStepBadge(finderBadge)
+        finderStatus.font = .systemFont(ofSize: 12, weight: .medium)
+        finderStatus.textColor = .secondaryLabelColor
+
+        let finderActions = NSStackView(views: [finderStatus, finderButton])
+        finderActions.orientation = .horizontal
+        finderActions.alignment = .centerY
+        finderActions.spacing = 12
+
         let steps = NSStackView(views: [
             makeStep(
                 badge: permissionBadge,
@@ -113,15 +125,10 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
                 accessory: permissionActions
             ),
             makeStep(
-                number: "2",
+                badge: finderBadge,
                 title: "Open Finder",
                 detail: "If macOS asks for Finder access, choose Allow. Switch Finder to Icon View to see HaloLayer.",
-                accessory: finderButton
-            ),
-            makeStep(
-                number: "3",
-                title: "Choose what you see",
-                detail: "Click the halo in the menu bar to toggle file size, resolution, and folder badges independently."
+                accessory: finderActions
             )
         ])
         steps.orientation = .vertical
@@ -258,7 +265,7 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
         permissionBadge.layer?.borderColor = (granted ? NSColor.systemGreen : NSColor.separatorColor).cgColor
         permissionButton.isHidden = granted
         finderButton.isEnabled = granted
-        doneButton.isEnabled = granted
+        doneButton.isEnabled = granted && didOpenFinder
 
         if !granted {
             let hasRequested = UserDefaults.standard.bool(forKey: didRequestPermissionKey)
@@ -285,12 +292,18 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
 
     @objc private func openFinder() {
         NSWorkspace.shared.open(URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true))
+        didOpenFinder = true
+        finderStatus.stringValue = "Opened"
+        finderStatus.textColor = .systemGreen
+        finderBadge.stringValue = "✓"
+        finderBadge.textColor = .systemGreen
+        finderBadge.layer?.borderColor = NSColor.systemGreen.cgColor
+        doneButton.isEnabled = permissionController.checkPermission() == .granted
     }
 
     @objc private func finish() {
         guard permissionController.checkPermission() == .granted else { return }
         UserDefaults.standard.set(currentGuideVersion, forKey: completedGuideVersionKey)
-        openFinder()
         window?.close()
     }
 

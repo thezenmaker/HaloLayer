@@ -169,6 +169,7 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         row.addSubview(resolutionSwitch)
 
         item.view = row
+        item.isEnabled = true
         return item
     }
 
@@ -188,6 +189,7 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         row.addSubview(folderCountSwitch)
 
         item.view = row
+        item.isEnabled = true
         return item
     }
 
@@ -208,7 +210,7 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         if let button = statusItem.button {
             let anyLayerActive = metadataLayerEnabled || isFolderCountsEnabled
             let color: NSColor = (anyLayerActive && permissionGranted)
-                ? NSColor.green : NSColor.systemGray
+                ? NSColor.controlAccentColor : NSColor.systemGray
             button.image = makeHaloStatusImage()
             button.contentTintColor = color
             button.toolTip = "HaloLayer — " + permMessage
