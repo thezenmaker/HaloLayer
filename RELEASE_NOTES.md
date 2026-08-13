@@ -2,15 +2,10 @@
 
 ## What changed
 
-- The Getting Started guide now reliably comes to the foreground after Gatekeeper allows HaloLayer to launch.
-- The guide is presented automatically only once. It remains available manually from the halo menu.
-- Completing setup updates the menu immediately, while the halo logo remains neutral.
-- Size, resolution, and folder-badge preferences persist between launches.
-- Opening Finder completes step 2 and enables **Finish Setup** immediately.
-- The download includes an **Open Privacy & Security** shortcut to Apple's built-in Security settings pane.
-- Normal users can install from a ready-made DMG with an Applications shortcut.
-- The setup guide appears once for this build, including for testers whose earlier HaloLayer preferences remain on the Mac.
-- Saved enabled switches remain interactive and blue after relaunching.
+- Added a simpler DMG installation flow with first-launch guidance.
+- Improved setup reliability and remembered preferences between launches.
+- Refined menu controls and Finder overlay behavior.
+- Included universal support for Apple Silicon and Intel Macs.
 
 ## Install the app
 

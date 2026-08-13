@@ -20,6 +20,7 @@ All notable HaloLayer changes will be documented here.
 - Added a ready-made DMG for normal-user installation without Xcode.
 - Presented onboarding once per internal build so retained preview preferences cannot suppress a newly corrected guide.
 - Disabled automatic menu-item validation so saved enabled switches remain interactive and blue after relaunching.
+- Replaced native menu switches with deterministic controls whose enabled state is always system blue.
 
 ## 0.1.0 — 2026-08-13
 

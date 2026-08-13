@@ -15,9 +15,9 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
     // MARK: — Menu bar
     private var statusItem: NSStatusItem!
     private var statusMenu: NSMenu!
-    private var sizeSwitch: NSSwitch!
-    private var resolutionSwitch: NSSwitch!
-    private var folderCountSwitch: NSSwitch!
+    private var sizeSwitch: AlwaysBlueToggle!
+    private var resolutionSwitch: AlwaysBlueToggle!
+    private var folderCountSwitch: AlwaysBlueToggle!
     private var quitMenuItem: NSMenuItem!
     private var permissionMenuItem: NSMenuItem!
     private var gettingStartedController: GettingStartedWindowController?
@@ -153,8 +153,7 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         sizeLabel.frame = NSRect(x: 100, y: 12, width: 30, height: 18)
         row.addSubview(sizeLabel)
 
-        sizeSwitch = NSSwitch(frame: NSRect(x: 130, y: 9, width: 40, height: 24))
-        sizeSwitch.controlSize = .mini
+        sizeSwitch = AlwaysBlueToggle(frame: NSRect(x: 134, y: 12, width: 32, height: 18))
         sizeSwitch.target = self
         sizeSwitch.action = #selector(toggleFileSize(_:))
         row.addSubview(sizeSwitch)
@@ -165,8 +164,7 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         resolutionLabel.frame = NSRect(x: 181, y: 12, width: 64, height: 18)
         row.addSubview(resolutionLabel)
 
-        resolutionSwitch = NSSwitch(frame: NSRect(x: 270, y: 9, width: 40, height: 24))
-        resolutionSwitch.controlSize = .mini
+        resolutionSwitch = AlwaysBlueToggle(frame: NSRect(x: 274, y: 12, width: 32, height: 18))
         resolutionSwitch.target = self
         resolutionSwitch.action = #selector(toggleResolution(_:))
         row.addSubview(resolutionSwitch)
@@ -185,8 +183,7 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         title.frame = NSRect(x: 14, y: 10, width: 180, height: 18)
         row.addSubview(title)
 
-        folderCountSwitch = NSSwitch(frame: NSRect(x: 270, y: 7, width: 40, height: 24))
-        folderCountSwitch.controlSize = .mini
+        folderCountSwitch = AlwaysBlueToggle(frame: NSRect(x: 274, y: 10, width: 32, height: 18))
         folderCountSwitch.target = self
         folderCountSwitch.action = #selector(toggleFolderCounts(_:))
         row.addSubview(folderCountSwitch)
@@ -197,9 +194,9 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateStatusBar() {
-        sizeSwitch?.state = isFileSizeEnabled ? .on : .off
-        resolutionSwitch?.state = isResolutionEnabled ? .on : .off
-        folderCountSwitch?.state = isFolderCountsEnabled ? .on : .off
+        sizeSwitch?.isOn = isFileSizeEnabled
+        resolutionSwitch?.isOn = isResolutionEnabled
+        folderCountSwitch?.isOn = isFolderCountsEnabled
         sizeSwitch?.isEnabled = true
         resolutionSwitch?.isEnabled = true
         folderCountSwitch?.isEnabled = true
@@ -282,22 +279,25 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: — Menu actions
 
-    @objc private func toggleFileSize(_ sender: NSSwitch) {
-        isFileSizeEnabled = sender.state == .on
+    @objc private func toggleFileSize(_ sender: NSControl) {
+        guard let sender = sender as? AlwaysBlueToggle else { return }
+        isFileSizeEnabled = sender.isOn
         UserDefaults.standard.set(isFileSizeEnabled, forKey: fileSizePreferenceKey)
         updateStatusBar()
         refreshForLayerChange()
     }
 
-    @objc private func toggleResolution(_ sender: NSSwitch) {
-        isResolutionEnabled = sender.state == .on
+    @objc private func toggleResolution(_ sender: NSControl) {
+        guard let sender = sender as? AlwaysBlueToggle else { return }
+        isResolutionEnabled = sender.isOn
         UserDefaults.standard.set(isResolutionEnabled, forKey: resolutionPreferenceKey)
         updateStatusBar()
         refreshForLayerChange()
     }
 
-    @objc private func toggleFolderCounts(_ sender: NSSwitch) {
-        isFolderCountsEnabled = sender.state == .on
+    @objc private func toggleFolderCounts(_ sender: NSControl) {
+        guard let sender = sender as? AlwaysBlueToggle else { return }
+        isFolderCountsEnabled = sender.isOn
         UserDefaults.standard.set(
             isFolderCountsEnabled,
             forKey: folderCountsPreferenceKey
@@ -469,4 +469,80 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+}
+
+private final class AlwaysBlueToggle: NSControl {
+    private let trackLayer = CALayer()
+    private let knobLayer = CALayer()
+
+    var isOn = false {
+        didSet {
+            updateAppearance()
+            setAccessibilityValue(isOn ? 1 : 0)
+        }
+    }
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+
+        trackLayer.cornerRadius = frameRect.height / 2
+        layer?.addSublayer(trackLayer)
+
+        knobLayer.backgroundColor = NSColor.white.cgColor
+        knobLayer.shadowColor = NSColor.black.cgColor
+        knobLayer.shadowOpacity = 0.18
+        knobLayer.shadowRadius = 1
+        knobLayer.shadowOffset = NSSize(width: 0, height: -0.5)
+        layer?.addSublayer(knobLayer)
+
+        setAccessibilityRole(.checkBox)
+        updateAppearance()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func layout() {
+        super.layout()
+        updateAppearance()
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        guard isEnabled else { return }
+        isOn.toggle()
+        sendAction(action, to: target)
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        guard isEnabled else { return false }
+        isOn.toggle()
+        sendAction(action, to: target)
+        return true
+    }
+
+    private func updateAppearance() {
+        let trackFrame = bounds.insetBy(dx: 0, dy: 1)
+        let knobSize = trackFrame.height - 4
+        let knobX = isOn
+            ? trackFrame.maxX - knobSize - 2
+            : trackFrame.minX + 2
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        trackLayer.frame = trackFrame
+        trackLayer.cornerRadius = trackFrame.height / 2
+        trackLayer.backgroundColor = (
+            isOn ? NSColor.systemBlue : NSColor.systemGray
+        ).cgColor
+        knobLayer.frame = NSRect(
+            x: knobX,
+            y: trackFrame.minY + 2,
+            width: knobSize,
+            height: knobSize
+        )
+        knobLayer.cornerRadius = knobSize / 2
+        CATransaction.commit()
+    }
 }
