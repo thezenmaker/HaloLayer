@@ -36,13 +36,13 @@ HaloLayer is not yet signed or notarized with a paid Apple Developer certificate
 
 ### For normal users — download the DMG
 
-Download `HaloLayer-v0.1.1-macos-universal.dmg` from the **Assets** section of the [latest GitHub Release](https://github.com/thezenmaker/HaloLayer/releases/latest), open it, and drag `HaloLayer.app` onto Applications. The DMG also includes an **Open Privacy & Security** shortcut and a short installation guide. Xcode and an Apple Developer account are not required. This universal preview build supports Apple Silicon and Intel Macs.
+Download `HaloLayer-v0.1.1-macos-universal.dmg` from the **Assets** section of the [latest GitHub Release](https://github.com/thezenmaker/HaloLayer/releases/latest), open it, and drag `HaloLayer.app` onto Applications. The DMG also includes a native **Open Privacy & Security** link and a short installation guide. Xcode and an Apple Developer account are not required. This universal preview build supports Apple Silicon and Intel Macs.
 
 > Do not choose GitHub's automatically generated **Source code (zip)** or use **Code → Download ZIP** unless you want the source files. Those downloads do not contain the ready-to-run app.
 
 Because the app is unsigned and not notarized, macOS will probably block the first launch. If—and only if—you downloaded it from this official repository:
 
-1. Open the DMG, drag `HaloLayer.app` onto Applications, then eject the HaloLayer disk image. Dragging copies the app, so the source remains visible inside the DMG until it is ejected.
+1. Open the DMG and drag `HaloLayer.app` onto Applications. This copies the app; it does not automatically open the Applications folder. Double-click Applications if you want to verify the copy, then eject the HaloLayer disk image.
 2. Open HaloLayer once and dismiss the macOS warning.
 3. Double-click **Open Privacy & Security** included in the download.
 4. Find the HaloLayer message and choose **Open Anyway → Open**.

@@ -10,7 +10,7 @@
 ## Install the app
 
 1. Download `HaloLayer-v0.1.1-macos-universal.dmg` from **Assets**. Do not choose GitHub's generated source-code archives unless you want the source.
-2. Open the DMG, drag `HaloLayer.app` onto Applications, then eject the HaloLayer disk image. The source app remains visible in the DMG until the image is ejected; this is normal macOS copy behavior.
+2. Open the DMG and drag `HaloLayer.app` onto Applications. This copies the app; it does not automatically open the Applications folder. Double-click Applications if you want to verify the copy, then eject the HaloLayer disk image.
 3. Open HaloLayer once and dismiss the macOS warning.
 4. Double-click **Open Privacy & Security** included beside the app.
 5. Find the HaloLayer message and choose **Open Anyway → Open**.

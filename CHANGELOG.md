@@ -21,6 +21,7 @@ All notable HaloLayer changes will be documented here.
 - Presented onboarding once per internal build so retained preview preferences cannot suppress a newly corrected guide.
 - Disabled automatic menu-item validation so saved enabled switches remain interactive and blue after relaunching.
 - Replaced native menu switches with deterministic controls whose enabled state is always system blue.
+- Replaced the unreliable Privacy & Security web location with a native macOS preference-pane link.
 
 ## 0.1.0 — 2026-08-13
 

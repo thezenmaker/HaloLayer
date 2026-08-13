@@ -57,6 +57,8 @@ final class AccessibilityPermissionController {
     @discardableResult
     static func openAccessibilitySettings() -> Bool {
         let destinations = [
+            "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_Accessibility",
+            "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension",
             "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
             "x-apple.systempreferences:com.apple.preference.security"
         ]
