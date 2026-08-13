@@ -36,7 +36,7 @@ HaloLayer is not yet signed or notarized with a paid Apple Developer certificate
 
 ### For normal users — download the DMG
 
-Download `HaloLayer-v0.1.1-macos-universal.dmg` from the **Assets** section of the [latest GitHub Release](https://github.com/thezenmaker/HaloLayer/releases/latest), open it, and drag `HaloLayer.app` onto Applications. The DMG also includes a native **Open Privacy & Security** link and a short installation guide. Xcode and an Apple Developer account are not required. This universal preview build supports Apple Silicon and Intel Macs.
+Download `HaloLayer-v0.1.1.dmg` from the **Assets** section of the [latest GitHub Release](https://github.com/thezenmaker/HaloLayer/releases/latest), open it, and drag `HaloLayer.app` onto Applications. The DMG also includes a native **Open Privacy & Security** link and a short installation guide. Xcode and an Apple Developer account are not required. This universal preview build supports Apple Silicon and Intel Macs.
 
 > Do not choose GitHub's automatically generated **Source code (zip)** or use **Code → Download ZIP** unless you want the source files. Those downloads do not contain the ready-to-run app.
 

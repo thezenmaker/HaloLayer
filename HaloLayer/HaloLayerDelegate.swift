@@ -21,6 +21,15 @@ enum FinderScrollMotion {
     }
 }
 
+enum GettingStartedPresentationPolicy {
+    static func shouldPresent(
+        isCompleted: Bool,
+        presentedThisLaunch: Bool
+    ) -> Bool {
+        !isCompleted && !presentedThisLaunch
+    }
+}
+
 final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: — Core components
@@ -59,19 +68,21 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
     private let fileSizePreferenceKey = "fileSizeEnabled"
     private let resolutionPreferenceKey = "fileResolutionEnabled"
     private let folderCountsPreferenceKey = "folderCountLayerEnabled"
-    private let presentedGuideBuildKey = "didPresentGettingStartedBuild"
-
-    private var currentBuild: String {
-        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
-    }
+    private let completedGuideKey = "didCompleteGettingStarted"
 
     // MARK: — NSApplicationDelegate
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        permissionController.onStatusChange = { [weak self] _ in
+        permissionController.onStatusChange = { [weak self] status in
             DispatchQueue.main.async {
-                self?.updateStatusBar()
-                self?.contextMonitor.refresh()
+                guard let self else { return }
+                self.updateStatusBar()
+                self.contextMonitor.refresh()
+                if status == .granted,
+                   !UserDefaults.standard.bool(forKey: self.completedGuideKey) {
+                    self.showGettingStarted()
+                    self.presentedGuideThisLaunch = true
+                }
             }
         }
 
@@ -211,10 +222,18 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
 
         let title = NSTextField(labelWithString: "Folder badges")
         title.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-        title.frame = NSRect(x: 14, y: 10, width: 180, height: 18)
+        title.sizeToFit()
+        title.frame.origin = NSPoint(x: 14, y: 10)
         row.addSubview(title)
 
-        folderCountSwitch = AlwaysBlueToggle(frame: NSRect(x: 274, y: 10, width: 32, height: 18))
+        folderCountSwitch = AlwaysBlueToggle(
+            frame: NSRect(
+                x: ceil(title.frame.maxX + 12),
+                y: 10,
+                width: 32,
+                height: 18
+            )
+        )
         folderCountSwitch.target = self
         folderCountSwitch.action = #selector(toggleFolderCounts(_:))
         row.addSubview(folderCountSwitch)
@@ -261,12 +280,12 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
 
     private func showGettingStartedIfNeeded() {
         let defaults = UserDefaults.standard
-        guard defaults.string(forKey: presentedGuideBuildKey) != currentBuild else {
-            return
-        }
+        guard GettingStartedPresentationPolicy.shouldPresent(
+            isCompleted: defaults.bool(forKey: completedGuideKey),
+            presentedThisLaunch: presentedGuideThisLaunch
+        ) else { return }
         showGettingStarted()
         presentedGuideThisLaunch = true
-        defaults.set(currentBuild, forKey: presentedGuideBuildKey)
     }
 
     private func presentInitialGuideWhenReady() {
@@ -297,7 +316,6 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
                 permissionController: permissionController,
                 onCompletion: { [weak self] in
                     guard let self else { return }
-                    UserDefaults.standard.set(self.currentBuild, forKey: self.presentedGuideBuildKey)
                     self.updateStatusBar()
                     self.refreshForLayerChange()
                 }

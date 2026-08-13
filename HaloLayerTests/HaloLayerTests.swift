@@ -26,6 +26,26 @@ final class FinderScrollMotionTests: XCTestCase {
     }
 }
 
+final class GettingStartedPresentationPolicyTests: XCTestCase {
+    func testPresentsIncompleteGuideOncePerLaunch() {
+        XCTAssertTrue(GettingStartedPresentationPolicy.shouldPresent(
+            isCompleted: false,
+            presentedThisLaunch: false
+        ))
+        XCTAssertFalse(GettingStartedPresentationPolicy.shouldPresent(
+            isCompleted: false,
+            presentedThisLaunch: true
+        ))
+    }
+
+    func testCompletedGuideNeverPresentsAutomatically() {
+        XCTAssertFalse(GettingStartedPresentationPolicy.shouldPresent(
+            isCompleted: true,
+            presentedThisLaunch: false
+        ))
+    }
+}
+
 final class ByteCountFormatterTests: XCTestCase {
 
     func testBytesFormatting() {
