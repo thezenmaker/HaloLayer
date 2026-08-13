@@ -11,7 +11,7 @@ struct FinderContext {
     let windowFrame: CGRect
 }
 
-enum FinderContextState {
+enum FinderContextState: Equatable {
     case idle                    // No Finder window
     case monitoring              // Tracking Finder
     case folderChanged           // Folder changed since last check
@@ -24,7 +24,9 @@ final class FinderContextMonitor {
 
     private var previousFolderURL: URL?
     private var previousWindowID: Int64?
+    private var consecutiveContextFailures = 0
     public var currentContext: FinderContext?
+    private(set) var isFinderActive: Bool
 
     private let workspace = NSWorkspace.shared
     private let notificationCenter = NSWorkspace.shared.notificationCenter
@@ -35,7 +37,9 @@ final class FinderContextMonitor {
     var onStateChange: ((FinderContextState) -> Void)?
 
     var state: FinderContextState = .idle {
-        didSet { onStateChange?(state) }
+        didSet {
+            if state != oldValue { onStateChange?(state) }
+        }
     }
 
     var currentFolder: URL? { currentContext?.folderURL }
@@ -43,6 +47,8 @@ final class FinderContextMonitor {
     // MARK: — Lifecycle
 
     init() {
+        isFinderActive = workspace.frontmostApplication?.bundleIdentifier == "com.apple.finder"
+
         // Observe application activation
         notificationCenter.addObserver(
             self,
@@ -71,26 +77,29 @@ final class FinderContextMonitor {
 
     /// Refresh immediately instead of waiting for Finder to be re-activated.
     func refresh() {
-        handleFinderActivation(
-            workspace.frontmostApplication?.bundleIdentifier == "com.apple.finder"
-        )
+        handleFinderActivation(isFinderActive)
     }
 
     // MARK: — Private
 
     @objc private func handleFrontmostApplicationChanged(notification: Notification) {
         guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
-        handleFinderActivation(app.bundleIdentifier == "com.apple.finder")
+        isFinderActive = app.bundleIdentifier == "com.apple.finder"
+        handleFinderActivation(isFinderActive)
     }
 
     @objc private func handleFinderLaunched(notification: Notification) {
         guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
-        handleFinderActivation(app.bundleIdentifier == "com.apple.finder")
+        guard app.bundleIdentifier == "com.apple.finder" else { return }
+        isFinderActive = workspace.frontmostApplication?.bundleIdentifier == "com.apple.finder"
+        handleFinderActivation(isFinderActive)
     }
 
     @objc private func handleFinderTerminated(notification: Notification) {
         guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
         if app.bundleIdentifier == "com.apple.finder" {
+            isFinderActive = false
+            consecutiveContextFailures = 0
             currentContext = nil
             previousFolderURL = nil
             previousWindowID = nil
@@ -101,6 +110,7 @@ final class FinderContextMonitor {
 
     private func handleFinderActivation(_ isActive: Bool) {
         if !isActive {
+            consecutiveContextFailures = 0
             currentContext = nil
             previousFolderURL = nil
             previousWindowID = nil
@@ -111,6 +121,7 @@ final class FinderContextMonitor {
 
         // Finder is frontmost — try to get the frontmost Finder window
         if let context = getFrontmostFinderContext() {
+            consecutiveContextFailures = 0
             let changed = previousWindowID != context.windowID ||
                 previousFolderURL != context.folderURL
 
@@ -124,6 +135,15 @@ final class FinderContextMonitor {
                 state = .monitoring
             }
         } else {
+            // Finder can briefly fail to answer Apple Events while scrolling,
+            // navigating, or rebuilding its Accessibility tree. Keep the last
+            // valid context for a short grace period so the overlay does not
+            // flicker out between otherwise continuous frames.
+            consecutiveContextFailures += 1
+            if currentContext != nil, consecutiveContextFailures < 3 {
+                state = .monitoring
+                return
+            }
             currentContext = nil
             previousFolderURL = nil
             previousWindowID = nil

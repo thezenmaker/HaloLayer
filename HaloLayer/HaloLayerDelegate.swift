@@ -3,6 +3,23 @@
 
 import Cocoa
 import Foundation
+import QuartzCore
+
+enum FinderScrollMotion {
+    /// Precise trackpad deltas are already measured in points. Traditional
+    /// wheel events are line based, so approximate AppKit's line movement.
+    static func contentTranslation(
+        deltaX: CGFloat,
+        deltaY: CGFloat,
+        hasPreciseDeltas: Bool
+    ) -> CGVector {
+        let multiplier: CGFloat = hasPreciseDeltas ? 1 : 10
+        return CGVector(
+            dx: deltaX * multiplier,
+            dy: deltaY * multiplier
+        )
+    }
+}
 
 final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
 
@@ -27,10 +44,18 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
     private var isResolutionEnabled: Bool = true
     private var isFolderCountsEnabled: Bool = false
     private var refreshTimer: Timer?
+    private var scrollEventMonitor: Any?
+    private var scrollDisplayLink: CADisplayLink?
+    private var pendingScrollTranslation = CGVector.zero
+    private var isTrackingFinderScroll = false
+    private var lastScrollEventTime: CFTimeInterval = 0
     private var navigationRetryWorkItem: DispatchWorkItem?
     private var presentedGuideThisLaunch = false
-    private let refreshInterval: TimeInterval = 1.0 / 30.0
+    // Navigation/content changes do not need display-rate AX tree scans. Live
+    // scrolling has its own display-link path below.
+    private let refreshInterval: TimeInterval = 1.0 / 8.0
     private let navigationSettleDelay: TimeInterval = 0.016
+    private let scrollSettleDelay: CFTimeInterval = 0.085
     private let fileSizePreferenceKey = "fileSizeEnabled"
     private let resolutionPreferenceKey = "fileResolutionEnabled"
     private let folderCountsPreferenceKey = "folderCountLayerEnabled"
@@ -80,6 +105,8 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         )
         refreshTimer?.tolerance = 0.003
 
+        setupFinderScrollTracking()
+
         contextMonitor.refresh()
     }
 
@@ -93,6 +120,10 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         refreshTimer?.invalidate()
+        if let scrollEventMonitor {
+            NSEvent.removeMonitor(scrollEventMonitor)
+        }
+        scrollDisplayLink?.invalidate()
         navigationRetryWorkItem?.cancel()
         overlayController.hide()
     }
@@ -412,6 +443,11 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        // During a trackpad/wheel gesture the cached views follow the event
+        // deltas at display cadence. Re-running AppleScript and traversing the
+        // Finder AX hierarchy here would reintroduce the visible trailing lag.
+        guard !isTrackingFinderScroll else { return }
+
         // Finder navigation does not activate a new application, and workspace
         // activation notifications can occasionally be coalesced. Refresh the
         // front window context as part of the existing polling cycle.
@@ -429,6 +465,77 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        renderOverlay(for: context)
+    }
+
+    // MARK: — Display-synchronous Finder scrolling
+
+    private func setupFinderScrollTracking() {
+        scrollEventMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: .scrollWheel
+        ) { [weak self] event in
+            let delta = FinderScrollMotion.contentTranslation(
+                deltaX: event.scrollingDeltaX,
+                deltaY: event.scrollingDeltaY,
+                hasPreciseDeltas: event.hasPreciseScrollingDeltas
+            )
+            let pointerLocation = NSEvent.mouseLocation
+
+            DispatchQueue.main.async { [weak self] in
+                self?.handleFinderScrollEvent(
+                    translation: delta,
+                    pointerLocation: pointerLocation
+                )
+            }
+        }
+
+        guard let screen = NSScreen.main else { return }
+        let displayLink = screen.displayLink(
+            target: self,
+            selector: #selector(handleScrollDisplayLink(_:))
+        )
+        displayLink.add(to: .main, forMode: .common)
+        displayLink.isPaused = true
+        scrollDisplayLink = displayLink
+    }
+
+    private func handleFinderScrollEvent(
+        translation: CGVector,
+        pointerLocation: CGPoint
+    ) {
+        guard translation.dx != 0 || translation.dy != 0,
+              contextMonitor.isFinderActive,
+              overlayController.contains(screenPoint: pointerLocation) else { return }
+
+        pendingScrollTranslation.dx += translation.dx
+        pendingScrollTranslation.dy += translation.dy
+        lastScrollEventTime = CACurrentMediaTime()
+        isTrackingFinderScroll = true
+        scrollDisplayLink?.isPaused = false
+    }
+
+    @objc private func handleScrollDisplayLink(_ displayLink: CADisplayLink) {
+        dispatchPrecondition(condition: .onQueue(.main))
+
+        let translation = pendingScrollTranslation
+        pendingScrollTranslation = .zero
+        overlayController.translateCachedContent(by: translation)
+
+        guard isTrackingFinderScroll,
+              CACurrentMediaTime() - lastScrollEventTime >= scrollSettleDelay else {
+            return
+        }
+
+        // Momentum has settled. Replace the translated cache with Finder's
+        // authoritative current frames before returning to normal polling.
+        isTrackingFinderScroll = false
+        displayLink.isPaused = true
+        contextMonitor.refresh()
+        guard contextMonitor.state == .monitoring,
+              let context = contextMonitor.currentContext else {
+            overlayController.hide()
+            return
+        }
         renderOverlay(for: context)
     }
 

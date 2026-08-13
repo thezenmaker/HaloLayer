@@ -4,6 +4,28 @@
 import XCTest
 @testable import HaloLayer
 
+final class FinderScrollMotionTests: XCTestCase {
+    func testPreciseDeltasRemainOneToOne() {
+        let result = FinderScrollMotion.contentTranslation(
+            deltaX: 2.5,
+            deltaY: -7.25,
+            hasPreciseDeltas: true
+        )
+        XCTAssertEqual(result.dx, 2.5)
+        XCTAssertEqual(result.dy, -7.25)
+    }
+
+    func testLineBasedWheelDeltasUsePointMultiplier() {
+        let result = FinderScrollMotion.contentTranslation(
+            deltaX: -1,
+            deltaY: 3,
+            hasPreciseDeltas: false
+        )
+        XCTAssertEqual(result.dx, -10)
+        XCTAssertEqual(result.dy, 30)
+    }
+}
+
 final class ByteCountFormatterTests: XCTestCase {
 
     func testBytesFormatting() {

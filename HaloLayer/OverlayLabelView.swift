@@ -31,8 +31,8 @@ final class OverlayLabelView: NSView {
         layer?.masksToBounds = true
     }
 
-    func attach(to window: NSWindow) {
-        window.contentView?.addSubview(self, positioned: .below, relativeTo: nil)
+    func attach(to parentView: NSView) {
+        parentView.addSubview(self, positioned: .below, relativeTo: nil)
         wantsLayer = true
         layer?.backgroundColor = .clear
         layer?.masksToBounds = true
