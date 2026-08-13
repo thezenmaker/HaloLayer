@@ -11,7 +11,7 @@ File sizes, image and video dimensions, folder sizes, and subtle item-count badg
 [![License MIT](https://img.shields.io/badge/License-MIT-63D391)](LICENSE)
 [![Status Preview](https://img.shields.io/badge/Status-Preview-8B7CF6)](#project-status)
 
-[Website preview](https://zenmaker-website-git-agent-halolayer-product-page-zenmaker.vercel.app/halolayer) · [Download app](https://github.com/thezenmaker/HaloLayer/releases/latest) · [Install](#installation) · [Privacy](PRIVACY.md) · [Contribute](CONTRIBUTING.md)
+[Website](https://zenmaker.io/halolayer) · [Download app](https://github.com/thezenmaker/HaloLayer/releases/latest) · [Install](#installation) · [Privacy](PRIVACY.md) · [Contribute](CONTRIBUTING.md)
 
 </div>
 
