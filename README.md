@@ -11,7 +11,7 @@ File sizes, image and video dimensions, folder sizes, and subtle item-count badg
 [![License MIT](https://img.shields.io/badge/License-MIT-63D391)](LICENSE)
 [![Status Preview](https://img.shields.io/badge/Status-Preview-8B7CF6)](#project-status)
 
-[Website preview](https://zenmaker-website-git-agent-halolayer-product-page-zenmaker.vercel.app/halolayer) · [Install](#installation) · [Privacy](#privacy-and-permissions) · [Contribute](CONTRIBUTING.md)
+[Website preview](https://zenmaker-website-git-agent-halolayer-product-page-zenmaker.vercel.app/halolayer) · [Install](#installation) · [Privacy](PRIVACY.md) · [Contribute](CONTRIBUTING.md)
 
 </div>
 
@@ -28,7 +28,7 @@ HaloLayer is a small native macOS menu-bar utility from [Johanna Zhou / ZenMaker
 - Overlay clipping to the active Finder viewport
 - Fast position updates while scrolling and automatic hiding behind other windows
 
-Everything runs locally. HaloLayer does not require an account, analytics, or a visit to a website.
+Everything runs locally. HaloLayer does not require an account or transmit file names, file contents, folder paths, or usage data.
 
 ## Installation
 
@@ -65,11 +65,13 @@ After replacing or rebuilding the app, macOS may treat it as a new binary and as
 
 ## Privacy and permissions
 
-HaloLayer reads Finder window geometry and local file metadata solely to draw its overlays. It does not upload filenames, metadata, or usage data. The app uses:
+HaloLayer reads Finder window geometry and local file metadata solely to draw its overlays. It does not transmit file names, file contents, folder paths, metadata, or usage data. The app uses:
 
 - **Accessibility** to read visible Finder item positions
 - **Finder automation** to identify the active folder and confirm Icon View
 - **Local filesystem metadata** to calculate sizes, dimensions, and folder counts
+
+See the complete, plain-language [privacy statement](PRIVACY.md).
 
 ## How it works
 
@@ -101,13 +103,20 @@ See [MANUAL_TESTS.md](MANUAL_TESTS.md) for Finder-specific verification that can
 
 ## Project status
 
-HaloLayer is an early preview. Finder's Accessibility hierarchy is not a public overlay API and can change between macOS versions. Icon View is the supported layout; List, Column, and Gallery views are intentionally left untouched.
+HaloLayer is an early preview with these current limitations:
+
+- macOS 14 or later is required.
+- Icon View is the supported layout; List, Column, and Gallery views are intentionally left untouched.
+- Finder's Accessibility hierarchy is not a public overlay API and can change between macOS versions.
+- Unsigned builds may require Accessibility permission to be granted again after rebuilding or replacing the app.
 
 ## About
 
 Built by [Johanna Zhou / ZenMaker](https://zenmaker.io)—designing tools that make complexity feel simple.
 
 HaloLayer remains fully functional without visiting the website.
+
+HaloLayer is an independent open-source project and is not affiliated with or endorsed by Apple Inc. macOS and Finder are trademarks of Apple Inc.
 
 ## More tools
 
