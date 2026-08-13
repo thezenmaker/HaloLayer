@@ -51,9 +51,9 @@ This approves this app only; do not disable Gatekeeper globally. macOS intention
 
 HaloLayer requires Accessibility access to position metadata beside visible Finder icons. The source is public so you can inspect what that permission is used for before installing.
 
-### For developers — build from source with free Xcode
+### For developers — build from source with Xcode
 
-You only need a Mac, Xcode, and a free Apple ID.
+You need a Mac with macOS 14 or later and Xcode. A paid Apple Developer membership is not required for a local build.
 
 ```bash
 git clone https://github.com/thezenmaker/HaloLayer.git
@@ -61,7 +61,7 @@ cd HaloLayer
 open HaloLayer.xcodeproj
 ```
 
-In Xcode, select the **HaloLayer** scheme and press **Run**. If Xcode asks for a team, choose your Personal Team under **Signing & Capabilities**. A paid Apple Developer membership is not required for a local build.
+In Xcode, select the **HaloLayer** scheme and press **Run**. Xcode can sign the app locally. If it asks for a development team, choose your Personal Team under **Signing & Capabilities**.
 
 ## First launch
 
