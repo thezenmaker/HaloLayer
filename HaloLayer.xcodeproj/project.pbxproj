@@ -17,6 +17,7 @@
 		A1000009 = {isa = PBXBuildFile; fileRef = A2000009; };
 		A1000010 = {isa = PBXBuildFile; fileRef = A2000012; };
 		A1000011 = {isa = PBXBuildFile; fileRef = A2000013; };
+		A1000012 = {isa = PBXBuildFile; fileRef = A2000014; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,6 +34,7 @@
 		A2000011 = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HaloLayer.entitlements; sourceTree = "<group>"; };
 		A2000012 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GettingStartedWindowController.swift; sourceTree = "<group>"; };
 		A2000013 = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A2000014 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderCountBadgeView.swift; sourceTree = "<group>"; };
 		A3000001 = {isa = PBXFileReference; explicitFileType = wrapper.application; path = HaloLayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -53,7 +55,7 @@
 		};
 		A5000002 = {
 			isa = PBXGroup;
-			children = (A2000001, A2000002, A2000012, A2000003, A2000004, A2000005, A2000006, A2000007, A2000008, A2000009, A2000010, A2000011, A2000013);
+			children = (A2000001, A2000002, A2000012, A2000003, A2000004, A2000005, A2000006, A2000007, A2000008, A2000014, A2000009, A2000010, A2000011, A2000013);
 			path = HaloLayer;
 			sourceTree = "<group>";
 		};
@@ -105,7 +107,7 @@
 		A7000001 = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (A1000001, A1000002, A1000010, A1000003, A1000004, A1000005, A1000006, A1000007, A1000008, A1000009);
+			files = (A1000001, A1000002, A1000010, A1000003, A1000004, A1000005, A1000006, A1000007, A1000008, A1000012, A1000009);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
@@ -127,18 +129,18 @@
 				CODE_SIGN_ENTITLEMENTS = HaloLayer/HaloLayer.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = HaloLayer/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/../Frameworks");
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.korwerk.halolayer;
 				PRODUCT_NAME = HaloLayer;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 6.0;
+				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
 		};
@@ -149,18 +151,18 @@
 				CODE_SIGN_ENTITLEMENTS = HaloLayer/HaloLayer.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = HaloLayer/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/../Frameworks");
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.korwerk.halolayer;
 				PRODUCT_NAME = HaloLayer;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 6.0;
+				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
 		};

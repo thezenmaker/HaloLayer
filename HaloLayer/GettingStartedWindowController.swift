@@ -1,24 +1,31 @@
 import AppKit
 
-final class GettingStartedWindowController: NSWindowController {
+final class GettingStartedWindowController: NSWindowController, NSWindowDelegate {
     private let permissionController: AccessibilityPermissionController
-    private let permissionStatus = NSTextField(labelWithString: "")
-    private let permissionButton = NSButton(title: "Open Accessibility Settings", target: nil, action: nil)
+    private let permissionBadge = NSTextField(labelWithString: "1")
+    private let permissionStatus = NSTextField(labelWithString: "Checking…")
+    private let permissionButton = NSButton(title: "Allow Accessibility", target: nil, action: nil)
+    private let finderButton = NSButton(title: "Open Finder", target: nil, action: nil)
+    private let doneButton = NSButton(title: "Open Finder and Finish", target: nil, action: nil)
+    private var permissionPollTimer: Timer?
+
+    private let didRequestPermissionKey = "didRequestAccessibilityPermission"
 
     init(permissionController: AccessibilityPermissionController) {
         self.permissionController = permissionController
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 620, height: 560),
+            contentRect: NSRect(x: 0, y: 0, width: 660, height: 660),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
         )
-        window.title = "Welcome to HaloLayer"
+        window.title = "Set up HaloLayer"
         window.isReleasedWhenClosed = false
         window.backgroundColor = .windowBackgroundColor
 
         super.init(window: window)
+        window.delegate = self
         buildInterface()
         refreshPermissionStatus()
     }
@@ -29,7 +36,13 @@ final class GettingStartedWindowController: NSWindowController {
 
     override func showWindow(_ sender: Any?) {
         refreshPermissionStatus()
+        startPermissionPolling()
         super.showWindow(sender)
+        window?.makeKeyAndOrderFront(sender)
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        stopPermissionPolling()
     }
 
     private func buildInterface() {
@@ -40,11 +53,11 @@ final class GettingStartedWindowController: NSWindowController {
         logo.imageScaling = .scaleProportionallyUpOrDown
         logo.translatesAutoresizingMaskIntoConstraints = false
 
-        let title = NSTextField(labelWithString: "HaloLayer is ready")
+        let title = NSTextField(labelWithString: "Let’s make Finder more useful")
         title.font = .systemFont(ofSize: 28, weight: .semibold)
         title.alignment = .center
 
-        let subtitle = NSTextField(wrappingLabelWithString: "Three quick steps, then the details you need will appear directly in Finder Icon View.")
+        let subtitle = NSTextField(wrappingLabelWithString: "HaloLayer needs one macOS permission. We’ll guide you through it, then open Finder for you.")
         subtitle.font = .systemFont(ofSize: 14)
         subtitle.textColor = .secondaryLabelColor
         subtitle.alignment = .center
@@ -55,10 +68,29 @@ final class GettingStartedWindowController: NSWindowController {
         header.alignment = .centerX
         header.spacing = 10
 
+        let privacyIcon = NSImageView(image: NSImage(systemSymbolName: "lock.shield", accessibilityDescription: nil) ?? NSImage())
+        privacyIcon.contentTintColor = .secondaryLabelColor
+        privacyIcon.translatesAutoresizingMaskIntoConstraints = false
+
+        let privacyText = NSTextField(wrappingLabelWithString: "Your files stay on this Mac. HaloLayer does not send file names, folder paths, contents, or usage data anywhere.")
+        privacyText.font = .systemFont(ofSize: 12, weight: .medium)
+        privacyText.textColor = .secondaryLabelColor
+        privacyText.maximumNumberOfLines = 2
+
+        let privacyNotice = NSStackView(views: [privacyIcon, privacyText])
+        privacyNotice.orientation = .horizontal
+        privacyNotice.alignment = .centerY
+        privacyNotice.spacing = 12
+        privacyNotice.edgeInsets = NSEdgeInsets(top: 12, left: 14, bottom: 12, right: 14)
+        privacyNotice.wantsLayer = true
+        privacyNotice.layer?.cornerRadius = 10
+        privacyNotice.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
+
+        styleStepBadge(permissionBadge)
         permissionStatus.font = .systemFont(ofSize: 12, weight: .medium)
         permissionStatus.textColor = .secondaryLabelColor
         permissionButton.target = self
-        permissionButton.action = #selector(openAccessibilitySettings)
+        permissionButton.action = #selector(handleAccessibilityPermission)
         permissionButton.bezelStyle = .rounded
 
         let permissionActions = NSStackView(views: [permissionStatus, permissionButton])
@@ -66,22 +98,27 @@ final class GettingStartedWindowController: NSWindowController {
         permissionActions.alignment = .centerY
         permissionActions.spacing = 12
 
+        finderButton.target = self
+        finderButton.action = #selector(openFinder)
+        finderButton.bezelStyle = .rounded
+
         let steps = NSStackView(views: [
             makeStep(
-                number: "1",
+                badge: permissionBadge,
                 title: "Allow Accessibility",
-                detail: "HaloLayer uses this permission only to locate visible Finder icons.",
+                detail: "This lets HaloLayer locate visible Finder icons so metadata appears in the right place.",
                 accessory: permissionActions
             ),
             makeStep(
                 number: "2",
-                title: "Allow Finder access",
-                detail: "Choose Allow if macOS asks. This lets HaloLayer identify the open folder and view mode."
+                title: "Open Finder",
+                detail: "If macOS asks for Finder access, choose Allow. Switch Finder to Icon View to see HaloLayer.",
+                accessory: finderButton
             ),
             makeStep(
                 number: "3",
-                title: "Open Finder in Icon View",
-                detail: "Use the halo in the menu bar to turn file size, resolution, and folder badges on or off."
+                title: "Choose what you see",
+                detail: "Click the halo in the menu bar to toggle file size, resolution, and folder badges independently."
             )
         ])
         steps.orientation = .vertical
@@ -89,31 +126,45 @@ final class GettingStartedWindowController: NSWindowController {
         steps.spacing = 12
         steps.distribution = .fillEqually
 
-        let doneButton = NSButton(title: "Start using HaloLayer", target: self, action: #selector(finish))
+        doneButton.target = self
+        doneButton.action = #selector(finish)
         doneButton.bezelStyle = .rounded
         doneButton.keyEquivalent = "\r"
         doneButton.controlSize = .large
+
+        let laterButton = NSButton(title: "Set Up Later", target: self, action: #selector(setUpLater))
+        laterButton.bezelStyle = .rounded
+
+        let finalActions = NSStackView(views: [laterButton, doneButton])
+        finalActions.orientation = .horizontal
+        finalActions.alignment = .centerY
+        finalActions.spacing = 14
 
         let help = NSTextField(labelWithString: "You can reopen this guide anytime from the halo menu.")
         help.font = .systemFont(ofSize: 11)
         help.textColor = .tertiaryLabelColor
         help.alignment = .center
 
-        let root = NSStackView(views: [header, steps, doneButton, help])
+        let root = NSStackView(views: [header, privacyNotice, steps, finalActions, help])
         root.orientation = .vertical
         root.alignment = .centerX
-        root.spacing = 22
+        root.spacing = 18
         root.translatesAutoresizingMaskIntoConstraints = false
         contentView.addSubview(root)
 
         NSLayoutConstraint.activate([
-            logo.widthAnchor.constraint(equalToConstant: 76),
-            logo.heightAnchor.constraint(equalToConstant: 76),
-            subtitle.widthAnchor.constraint(equalToConstant: 440),
-            steps.widthAnchor.constraint(equalToConstant: 520),
-            doneButton.widthAnchor.constraint(equalToConstant: 220),
+            logo.widthAnchor.constraint(equalToConstant: 68),
+            logo.heightAnchor.constraint(equalToConstant: 68),
+            subtitle.widthAnchor.constraint(equalToConstant: 470),
+            privacyIcon.widthAnchor.constraint(equalToConstant: 24),
+            privacyIcon.heightAnchor.constraint(equalToConstant: 24),
+            privacyNotice.widthAnchor.constraint(equalToConstant: 550),
+            steps.widthAnchor.constraint(equalToConstant: 550),
+            doneButton.widthAnchor.constraint(equalToConstant: 210),
             root.leadingAnchor.constraint(greaterThanOrEqualTo: contentView.leadingAnchor, constant: 32),
             root.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -32),
+            root.topAnchor.constraint(greaterThanOrEqualTo: contentView.topAnchor, constant: 24),
+            root.bottomAnchor.constraint(lessThanOrEqualTo: contentView.bottomAnchor, constant: -24),
             root.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
             root.centerYAnchor.constraint(equalTo: contentView.centerYAnchor)
         ])
@@ -126,15 +177,16 @@ final class GettingStartedWindowController: NSWindowController {
         accessory: NSView? = nil
     ) -> NSView {
         let badge = NSTextField(labelWithString: number)
-        badge.font = .monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
-        badge.alignment = .center
-        badge.textColor = .labelColor
-        badge.wantsLayer = true
-        badge.layer?.cornerRadius = 16
-        badge.layer?.borderWidth = 1
-        badge.layer?.borderColor = NSColor.separatorColor.cgColor
-        badge.translatesAutoresizingMaskIntoConstraints = false
+        styleStepBadge(badge)
+        return makeStep(badge: badge, title: title, detail: detail, accessory: accessory)
+    }
 
+    private func makeStep(
+        badge: NSTextField,
+        title: String,
+        detail: String,
+        accessory: NSView? = nil
+    ) -> NSView {
         let heading = NSTextField(labelWithString: title)
         heading.font = .systemFont(ofSize: 15, weight: .semibold)
 
@@ -148,7 +200,7 @@ final class GettingStartedWindowController: NSWindowController {
         let text = NSStackView(views: textViews)
         text.orientation = .vertical
         text.alignment = .leading
-        text.spacing = 4
+        text.spacing = 5
 
         let row = NSStackView(views: [badge, text])
         row.orientation = .horizontal
@@ -162,24 +214,77 @@ final class GettingStartedWindowController: NSWindowController {
         NSLayoutConstraint.activate([
             badge.widthAnchor.constraint(equalToConstant: 32),
             badge.heightAnchor.constraint(equalToConstant: 32),
-            row.widthAnchor.constraint(equalToConstant: 520)
+            row.widthAnchor.constraint(equalToConstant: 550)
         ])
         return row
     }
 
-    private func refreshPermissionStatus() {
-        let granted = permissionController.checkPermission() == .granted
-        permissionStatus.stringValue = granted ? "Granted" : "Not granted yet"
-        permissionStatus.textColor = granted ? .systemGreen : .secondaryLabelColor
-        permissionButton.isHidden = granted
+    private func styleStepBadge(_ badge: NSTextField) {
+        badge.font = .monospacedDigitSystemFont(ofSize: 13, weight: .semibold)
+        badge.alignment = .center
+        badge.textColor = .labelColor
+        badge.wantsLayer = true
+        badge.layer?.cornerRadius = 16
+        badge.layer?.borderWidth = 1
+        badge.layer?.borderColor = NSColor.separatorColor.cgColor
+        badge.translatesAutoresizingMaskIntoConstraints = false
     }
 
-    @objc private func openAccessibilitySettings() {
-        AccessibilityPermissionController.openAccessibilitySettings()
+    private func startPermissionPolling() {
+        stopPermissionPolling()
+        let timer = Timer(timeInterval: 0.75, repeats: true) { [weak self] _ in
+            self?.refreshPermissionStatus()
+        }
+        permissionPollTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func stopPermissionPolling() {
+        permissionPollTimer?.invalidate()
+        permissionPollTimer = nil
+    }
+
+    private func refreshPermissionStatus() {
+        let granted = permissionController.checkPermission() == .granted
+        permissionStatus.stringValue = granted ? "Granted" : "Required"
+        permissionStatus.textColor = granted ? .systemGreen : .secondaryLabelColor
+        permissionBadge.stringValue = granted ? "✓" : "1"
+        permissionBadge.textColor = granted ? .systemGreen : .labelColor
+        permissionBadge.layer?.borderColor = (granted ? NSColor.systemGreen : NSColor.separatorColor).cgColor
+        permissionButton.isHidden = granted
+        finderButton.isEnabled = granted
+        doneButton.isEnabled = granted
+
+        if !granted {
+            let hasRequested = UserDefaults.standard.bool(forKey: didRequestPermissionKey)
+            permissionButton.title = hasRequested ? "Open System Settings" : "Allow Accessibility"
+        }
+    }
+
+    @objc private func handleAccessibilityPermission() {
+        guard permissionController.checkPermission() != .granted else { return }
+
+        if UserDefaults.standard.bool(forKey: didRequestPermissionKey) {
+            AccessibilityPermissionController.openAccessibilitySettings()
+        } else {
+            UserDefaults.standard.set(true, forKey: didRequestPermissionKey)
+            permissionController.requestPermission()
+        }
+        refreshPermissionStatus()
+    }
+
+    @objc private func openFinder() {
+        NSWorkspace.shared.open(URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true))
     }
 
     @objc private func finish() {
+        guard permissionController.checkPermission() == .granted else { return }
         UserDefaults.standard.set(true, forKey: "didCompleteGettingStarted")
+        openFinder()
+        window?.close()
+    }
+
+    @objc private func setUpLater() {
         window?.close()
     }
 }

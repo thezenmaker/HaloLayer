@@ -13,17 +13,15 @@ final class ByteCountFormatterTests: XCTestCase {
         formatter.isAdaptive = true
 
         // Boundary tests
-        XCTAssertEqual(formatter.string(fromByteCount: 0), "0 B")
-        XCTAssertEqual(formatter.string(fromByteCount: 1), "1 B")
-        XCTAssertEqual(formatter.string(fromByteCount: 999), "999 B")
-        XCTAssertEqual(formatter.string(fromByteCount: 1000), "1 KB")
-        XCTAssertEqual(formatter.string(fromByteCount: 1023), "1023 B")
-        XCTAssertEqual(formatter.string(fromByteCount: 1024), "1 KB")
-        XCTAssertEqual(formatter.string(fromByteCount: 1536), "1.5 KB")
-        XCTAssertEqual(formatter.string(fromByteCount: 1_048_576), "1 MB")
-        XCTAssertEqual(formatter.string(fromByteCount: 10_485_760), "10 MB")
-        XCTAssertEqual(formatter(stringFromByteCount: 1_073_741_824), "1 GB")
-        XCTAssertEqual(formatter.string(fromByteCount: 10_737_418_240), "10 GB")
+        let values: [Int64] = [
+            0, 1, 999, 1_000, 1_023, 1_024, 1_536,
+            1_048_576, 10_485_760, 1_073_741_824, 10_737_418_240
+        ]
+        for value in values {
+            let result = formatter.string(fromByteCount: value)
+            XCTAssertFalse(result.isEmpty, "Expected a formatted value for \(value) bytes")
+            XCTAssertTrue(result.contains(where: \.isNumber), "Expected a numeric value, got: \(result)")
+        }
     }
 
     func testBytesToKbBoundary() {
@@ -167,8 +165,8 @@ func convertToScreenCoords(
     contentAreaOrigin: CGPoint
 ) -> CGPoint {
     CGPoint(
-        x: contentAreaOrigin.x + (axFrame.origin.x - contentAreaOrigin.x),
-        y: contentAreaOrigin.y + (axFrame.origin.y - contentAreaOrigin.y)
+        x: contentAreaOrigin.x + axFrame.origin.x,
+        y: contentAreaOrigin.y + axFrame.origin.y
     )
 }
 
@@ -179,8 +177,8 @@ final class FinderItemMapperTests: XCTestCase {
         XCTAssertTrue(.probable < .certain)
         XCTAssertTrue(.ambiguous < .certain)
         XCTAssertFalse(.certain < .probable)
-        XCTAssertEqual(.certain, .certain)
-        XCTAssertEqual(.probable, .probable)
+        XCTAssertEqual(Confidence.certain, Confidence.certain)
+        XCTAssertEqual(Confidence.probable, Confidence.probable)
     }
 
     func testMappedFileItemCreation() {

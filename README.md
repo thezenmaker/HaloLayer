@@ -36,7 +36,7 @@ HaloLayer is not yet signed or notarized with a paid Apple Developer certificate
 
 ### For normal users — download the unsigned app
 
-Download `HaloLayer-v0.1.0-macos-arm64.zip` from the **Assets** section of the [latest GitHub Release](https://github.com/thezenmaker/HaloLayer/releases/latest), unzip it, and move `HaloLayer.app` to Applications. Xcode and an Apple Developer account are not required. This preview build supports Apple Silicon Macs.
+Download `HaloLayer-v0.1.1-macos-universal.zip` from the **Assets** section of the [latest GitHub Release](https://github.com/thezenmaker/HaloLayer/releases/latest), unzip it, and move `HaloLayer.app` to Applications. Xcode and an Apple Developer account are not required. This universal preview build supports Apple Silicon and Intel Macs.
 
 > Do not choose GitHub's automatically generated **Source code (zip)** or use **Code → Download ZIP** unless you want the source files. Those downloads do not contain the ready-to-run app.
 
@@ -66,6 +66,8 @@ In Xcode, select the **HaloLayer** scheme and press **Run**. If Xcode asks for a
 4. Open a Finder window in **Icon View** and use the menu-bar toggles to choose what appears.
 
 After replacing or rebuilding the app, macOS may treat it as a new binary and ask you to re-enable Accessibility access.
+
+On first launch, HaloLayer opens a guided setup assistant that explains the permission, detects when it is granted, opens Finder, and shows where to control each layer. You can reopen it later from **Getting Started…** in the halo menu.
 
 ## Privacy and permissions
 

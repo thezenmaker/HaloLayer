@@ -68,6 +68,20 @@ private struct AXMappedItem {
     let viewportFrame: CGRect
 }
 
+private struct ViewportKey: Hashable {
+    let x: CGFloat
+    let y: CGFloat
+    let width: CGFloat
+    let height: CGFloat
+
+    init(_ frame: CGRect) {
+        x = frame.origin.x
+        y = frame.origin.y
+        width = frame.width
+        height = frame.height
+    }
+}
+
 final class FinderItemMapper {
     // MARK: — Public API
 
@@ -367,7 +381,9 @@ final class FinderItemMapper {
         // A Finder window can contain several scroll areas (sidebar, preview,
         // file grid). The icon-view viewport is the one containing the largest
         // number of resolved children from the current folder.
-        let itemsByViewport = Dictionary(grouping: items, by: \.viewportFrame)
+        let itemsByViewport = Dictionary(grouping: items) {
+            ViewportKey($0.viewportFrame)
+        }
         return itemsByViewport.values.max { lhs, rhs in
             if lhs.count != rhs.count { return lhs.count < rhs.count }
             let lhsArea = (lhs.first?.viewportFrame.width ?? 0) *
