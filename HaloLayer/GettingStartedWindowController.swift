@@ -26,7 +26,7 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
             backing: .buffered,
             defer: false
         )
-        window.title = "Set up HaloLayer"
+        window.title = "Set Guide HaloLayer"
         window.isReleasedWhenClosed = false
         window.backgroundColor = .windowBackgroundColor
 
@@ -59,11 +59,13 @@ final class GettingStartedWindowController: NSWindowController, NSWindowDelegate
         logo.imageScaling = .scaleProportionallyUpOrDown
         logo.translatesAutoresizingMaskIntoConstraints = false
 
-        let title = NSTextField(labelWithString: "Let’s make Finder more useful")
+        let title = NSTextField(labelWithString: "See more in Finder Icon View")
         title.font = .systemFont(ofSize: 28, weight: .semibold)
         title.alignment = .center
 
-        let subtitle = NSTextField(wrappingLabelWithString: "HaloLayer needs one macOS permission. We’ll guide you through it, then open Finder for you.")
+        let subtitle = NSTextField(
+            wrappingLabelWithString: "Two quick steps, and you’re ready to go."
+        )
         subtitle.font = .systemFont(ofSize: 14)
         subtitle.textColor = .secondaryLabelColor
         subtitle.alignment = .center

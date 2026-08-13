@@ -13,6 +13,7 @@ All notable HaloLayer changes will be documented here.
 - Fixed the Xcode target so folder badges are included in normal Release builds.
 - Preserved macOS 14 compatibility in Finder viewport grouping.
 - Repaired and enabled the complete unit test suite.
+- Added an **Open Privacy & Security** download shortcut to simplify Gatekeeper approval.
 
 ## 0.1.0 — 2026-08-13
 
