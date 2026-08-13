@@ -24,9 +24,10 @@ enum FinderScrollMotion {
 enum GettingStartedPresentationPolicy {
     static func shouldPresent(
         isCompleted: Bool,
+        permissionGranted: Bool,
         presentedThisLaunch: Bool
     ) -> Bool {
-        !isCompleted && !presentedThisLaunch
+        !presentedThisLaunch && (!isCompleted || !permissionGranted)
     }
 }
 
@@ -282,6 +283,7 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         let defaults = UserDefaults.standard
         guard GettingStartedPresentationPolicy.shouldPresent(
             isCompleted: defaults.bool(forKey: completedGuideKey),
+            permissionGranted: permissionController.checkPermission() == .granted,
             presentedThisLaunch: presentedGuideThisLaunch
         ) else { return }
         showGettingStarted()

@@ -30,10 +30,12 @@ final class GettingStartedPresentationPolicyTests: XCTestCase {
     func testPresentsIncompleteGuideOncePerLaunch() {
         XCTAssertTrue(GettingStartedPresentationPolicy.shouldPresent(
             isCompleted: false,
+            permissionGranted: false,
             presentedThisLaunch: false
         ))
         XCTAssertFalse(GettingStartedPresentationPolicy.shouldPresent(
             isCompleted: false,
+            permissionGranted: false,
             presentedThisLaunch: true
         ))
     }
@@ -41,6 +43,15 @@ final class GettingStartedPresentationPolicyTests: XCTestCase {
     func testCompletedGuideNeverPresentsAutomatically() {
         XCTAssertFalse(GettingStartedPresentationPolicy.shouldPresent(
             isCompleted: true,
+            permissionGranted: true,
+            presentedThisLaunch: false
+        ))
+    }
+
+    func testMissingPermissionRestoresGuideAfterReinstall() {
+        XCTAssertTrue(GettingStartedPresentationPolicy.shouldPresent(
+            isCompleted: true,
+            permissionGranted: false,
             presentedThisLaunch: false
         ))
     }
