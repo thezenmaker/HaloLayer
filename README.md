@@ -34,7 +34,17 @@ Everything runs locally. HaloLayer does not require an account or transmit file 
 
 HaloLayer is not yet signed or notarized with a paid Apple Developer certificate. Choose the path that fits you.
 
-### For developers — build with free Xcode
+### For normal users — download the unsigned app
+
+When a manually verified preview build is attached to [GitHub Releases](https://github.com/thezenmaker/HaloLayer/releases), download `HaloLayer-v0.1.0.zip`, unzip it, and move `HaloLayer.app` to Applications. Xcode and an Apple Developer account are not required.
+
+Because the app is unsigned and not notarized, macOS will probably block the first launch. If—and only if—you downloaded it from this official repository, try to open HaloLayer once, then open **System Settings → Privacy & Security**, find the HaloLayer message, and choose **Open Anyway**. This approves this app only; do not disable Gatekeeper globally.
+
+HaloLayer requires Accessibility access to position metadata beside visible Finder icons. The source is public so you can inspect what that permission is used for before installing.
+
+> The ZIP is the recommended format for this early preview. A DMG would add a more polished drag-to-Applications presentation, but it would not remove the warning from an unsigned and unnotarized app.
+
+### For developers — build from source with free Xcode
 
 You only need a Mac, Xcode, and a free Apple ID.
 
@@ -45,14 +55,6 @@ open HaloLayer.xcodeproj
 ```
 
 In Xcode, select the **HaloLayer** scheme and press **Run**. If Xcode asks for a team, choose your Personal Team under **Signing & Capabilities**. A paid Apple Developer membership is not required for a local build.
-
-### For normal users — unsigned release build
-
-When a preview build is attached to [GitHub Releases](https://github.com/thezenmaker/HaloLayer/releases), download `HaloLayer.app.zip`, unzip it, and move `HaloLayer.app` to Applications.
-
-Because the app is unsigned and not notarized, macOS may block the first launch. If—and only if—you downloaded it from this official repository, open **System Settings → Privacy & Security**, find the HaloLayer message, and choose **Open Anyway**. This approves this app only; do not disable Gatekeeper globally.
-
-> No release is promised until a build has been manually verified. Building from source is the recommended preview path today.
 
 ## First launch
 
