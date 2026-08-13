@@ -133,6 +133,8 @@ HaloLayer is an independent open-source project and is not affiliated with or en
 
 Explore more work from [ZenMaker](https://zenmaker.io).
 
+If HaloLayer is useful to you, consider giving the repository a ⭐.
+
 ## License
 
 HaloLayer is available under the [MIT License](LICENSE).
