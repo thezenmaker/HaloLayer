@@ -27,7 +27,9 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
     private var isResolutionEnabled: Bool = true
     private var isFolderCountsEnabled: Bool = false
     private var refreshTimer: Timer?
-    private let refreshInterval: TimeInterval = 0.05  // 20 Hz scroll tracking
+    private var navigationRetryWorkItem: DispatchWorkItem?
+    private let refreshInterval: TimeInterval = 1.0 / 30.0
+    private let navigationSettleDelay: TimeInterval = 0.016
     private let fileSizePreferenceKey = "fileSizeEnabled"
     private let resolutionPreferenceKey = "fileResolutionEnabled"
     private let folderCountsPreferenceKey = "folderCountLayerEnabled"
@@ -51,13 +53,13 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
 
         // Setup context monitor
         contextMonitor.onContextChange = { [weak self] context in
-            DispatchQueue.main.async {
+            self?.performOnMain { [weak self] in
                 self?.handleFinderContext(context)
             }
         }
 
         contextMonitor.onStateChange = { [weak self] state in
-            DispatchQueue.main.async {
+            self?.performOnMain { [weak self] in
                 self?.handleFinderState(state)
             }
         }
@@ -70,13 +72,19 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
                 self?.performRefresh()
             }
         )
-        refreshTimer?.tolerance = 0.008
+        refreshTimer?.tolerance = 0.003
 
         contextMonitor.refresh()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false  // Menu-bar app, no windows
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        refreshTimer?.invalidate()
+        navigationRetryWorkItem?.cancel()
+        overlayController.hide()
     }
 
     // MARK: — Menu bar setup
@@ -272,6 +280,17 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        // A folder-change callback arrives before Finder has necessarily
+        // replaced its icon-view Accessibility children. The state handler
+        // has already hidden the old overlay and scheduled a frame-boundary
+        // retry, so never draw from this transient hierarchy.
+        guard contextMonitor.state != .folderChanged else { return }
+
+        renderOverlay(for: context)
+    }
+
+    private func renderOverlay(for context: FinderContext) {
+
         // Check if Icon View
         if !contextMonitor.isIconView() {
             overlayController.hide()
@@ -307,6 +326,7 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
     private func handleFinderState(_ state: FinderContextState) {
         switch state {
         case .idle:
+            navigationRetryWorkItem?.cancel()
             overlayController.hide()
         case .monitoring:
             // Labels will be updated by the refresh timer
@@ -315,9 +335,27 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
             // Never leave the previous folder's geometry on screen while the
             // new Finder hierarchy is still settling.
             overlayController.hide()
+            scheduleNavigationRefresh()
         case .viewUnsupported:
+            navigationRetryWorkItem?.cancel()
             overlayController.hide()
         }
+    }
+
+    private func scheduleNavigationRefresh() {
+        navigationRetryWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.contextMonitor.refresh()
+            guard self.contextMonitor.state == .monitoring,
+                  let context = self.contextMonitor.currentContext else { return }
+            self.renderOverlay(for: context)
+        }
+        navigationRetryWorkItem = workItem
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + navigationSettleDelay,
+            execute: workItem
+        )
     }
 
     // MARK: — Refresh cycle
@@ -335,6 +373,10 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         // front window context as part of the existing polling cycle.
         contextMonitor.refresh()
 
+        // handleFinderState(.folderChanged) hid the stale geometry
+        // synchronously and scheduled a retry after Finder's next frame.
+        guard contextMonitor.state != .folderChanged else { return }
+
         guard contextMonitor.state != .idle,
               let context = contextMonitor.currentContext else {
             if overlayController.isVisible {
@@ -343,35 +385,7 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        // Check if still Icon View
-        guard contextMonitor.isIconView() else {
-            overlayController.hide()
-            return
-        }
-
-        let labels = metadataLayerEnabled ? itemMapper.mapVisibleItems(
-            folderURL: context.folderURL, windowID: context.windowID,
-            windowFrame: context.windowFrame,
-            showSize: isFileSizeEnabled,
-            showResolution: isResolutionEnabled,
-            permissionController: permissionController
-        ) : []
-        let badges = isFolderCountsEnabled ? itemMapper.mapVisibleFolderBadges(
-            folderURL: context.folderURL, windowID: context.windowID,
-            windowFrame: context.windowFrame,
-            permissionController: permissionController
-        ) : []
-
-        // Non-empty result means something changed
-        if !labels.isEmpty || !badges.isEmpty {
-            overlayController.update(
-                over: context.windowFrame,
-                labels: labels,
-                folderBadges: badges
-            )
-        } else {
-            overlayController.hide()
-        }
+        renderOverlay(for: context)
     }
 
     // MARK: — Layer preferences
@@ -400,6 +414,14 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
             performRefresh()
         } else {
             overlayController.hide()
+        }
+    }
+
+    private func performOnMain(_ work: @escaping () -> Void) {
+        if Thread.isMainThread {
+            work()
+        } else {
+            DispatchQueue.main.async(execute: work)
         }
     }
 

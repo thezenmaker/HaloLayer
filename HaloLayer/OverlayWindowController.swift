@@ -10,10 +10,6 @@ final class OverlayWindowController {
     private var overlayWindow: NSWindow?
     private var labelViews: [OverlayLabelView] = []
     private var badgeViews: [FolderCountBadgeView] = []
-    private let overlayDispatchQueue = DispatchQueue(
-        label: "com.korwerk.halolayer.file-metadata-layer",
-        qos: .userInteractive
-    )
 
     var isVisible: Bool { overlayWindow?.isVisible ?? false }
 
@@ -40,53 +36,55 @@ final class OverlayWindowController {
         guard let window = overlayWindow else { return }
         window.setFrame(appKitViewportFrame, display: false)
 
-        // Update labels
-        overlayDispatchQueue.sync {
-            // Remove excess views
-            while labelViews.count > labels.count {
-                let removed = labelViews.removeLast()
-                removed.removeFromSuperview()
+        // AppKit view mutations must stay on the main thread. Moving these
+        // operations through a private queue caused intermittent one-frame
+        // stale/partial overlay draws while Finder was navigating.
+        dispatchPrecondition(condition: .onQueue(.main))
+
+        // Remove excess views
+        while labelViews.count > labels.count {
+            let removed = labelViews.removeLast()
+            removed.removeFromSuperview()
+        }
+
+        // Add or update views
+        for (i, label) in labels.enumerated() {
+            let view: OverlayLabelView
+            if i < labelViews.count {
+                view = labelViews[i]
+            } else {
+                view = OverlayLabelView()
+                view.registeredLabel = label.sizeText
+                view.attach(to: window)
+                labelViews.append(view)
             }
 
-            // Add or update views
-            for (i, label) in labels.enumerated() {
-                let view: OverlayLabelView
-                if i < labelViews.count {
-                    view = labelViews[i]
-                } else {
-                    view = OverlayLabelView()
-                    view.registeredLabel = label.sizeText
-                    view.attach(to: window)
-                    labelViews.append(view)
-                }
+            view.frame = appKitGlobalFrame(fromAccessibilityFrame: label.frame).offsetBy(
+                dx: -window.frame.minX,
+                dy: -window.frame.minY
+            )
+            view.sizeText = label.sizeText
+            view.detailText = label.detailText
+            view.isHidden = false
+        }
 
-                view.frame = appKitGlobalFrame(fromAccessibilityFrame: label.frame).offsetBy(
-                    dx: -window.frame.minX,
-                    dy: -window.frame.minY
-                )
-                view.sizeText = label.sizeText
-                view.detailText = label.detailText
-                view.isHidden = false
+        while badgeViews.count > folderBadges.count {
+            badgeViews.removeLast().removeFromSuperview()
+        }
+        for (i, badge) in folderBadges.enumerated() {
+            let view: FolderCountBadgeView
+            if i < badgeViews.count {
+                view = badgeViews[i]
+            } else {
+                view = FolderCountBadgeView()
+                window.contentView?.addSubview(view)
+                badgeViews.append(view)
             }
-
-            while badgeViews.count > folderBadges.count {
-                badgeViews.removeLast().removeFromSuperview()
-            }
-            for (i, badge) in folderBadges.enumerated() {
-                let view: FolderCountBadgeView
-                if i < badgeViews.count {
-                    view = badgeViews[i]
-                } else {
-                    view = FolderCountBadgeView()
-                    window.contentView?.addSubview(view)
-                    badgeViews.append(view)
-                }
-                view.frame = appKitGlobalFrame(
-                    fromAccessibilityFrame: badge.frame
-                ).offsetBy(dx: -window.frame.minX, dy: -window.frame.minY)
-                view.countText = badge.countText
-                view.isHidden = false
-            }
+            view.frame = appKitGlobalFrame(
+                fromAccessibilityFrame: badge.frame
+            ).offsetBy(dx: -window.frame.minX, dy: -window.frame.minY)
+            view.countText = badge.countText
+            view.isHidden = false
         }
 
         // Keep HaloLayer immediately above this Finder content window—not at
@@ -101,12 +99,11 @@ final class OverlayWindowController {
 
     /// Hide the overlay.
     func hide() {
-        overlayDispatchQueue.sync {
-            labelViews.forEach { $0.removeFromSuperview() }
-            labelViews.removeAll()
-            badgeViews.forEach { $0.removeFromSuperview() }
-            badgeViews.removeAll()
-        }
+        dispatchPrecondition(condition: .onQueue(.main))
+        labelViews.forEach { $0.removeFromSuperview() }
+        labelViews.removeAll()
+        badgeViews.forEach { $0.removeFromSuperview() }
+        badgeViews.removeAll()
         overlayWindow?.orderOut(self)
     }
 
