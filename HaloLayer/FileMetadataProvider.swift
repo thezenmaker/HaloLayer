@@ -5,6 +5,17 @@ import Foundation
 import ImageIO
 import AVFoundation
 
+struct CachedMetadataLookup {
+    let isCached: Bool
+    let value: String?
+
+    static let miss = CachedMetadataLookup(isCached: false, value: nil)
+
+    static func hit(_ value: String?) -> CachedMetadataLookup {
+        CachedMetadataLookup(isCached: true, value: value)
+    }
+}
+
 final class FileMetadataProvider {
 
     // MARK: — Singleton
@@ -16,24 +27,27 @@ final class FileMetadataProvider {
     private var cache: [URL: (size: Int, timestamp: TimeInterval)] = [:]
     private var folderCache: [URL: (size: Int64?, timestamp: TimeInterval)] = [:]
     private var dimensionCache: [URL: (value: String?, timestamp: TimeInterval)] = [:]
+    private var folderCountCache: [URL: (count: Int?, timestamp: TimeInterval)] = [:]
     private var folderCalculationsInFlight: Set<URL> = []
     private let cacheDispatchQueue = DispatchQueue(label: "com.korwerk.halolayer.metadata-cache")
     private let folderSizeQueue = DispatchQueue(
         label: "com.korwerk.halolayer.folder-size",
         qos: .utility
     )
-    private let cacheTTL: TimeInterval = 2 // seconds
-    private let folderCacheTTL: TimeInterval = 30
-    private let dimensionCacheTTL: TimeInterval = 60
+    private let cacheTTL: TimeInterval = 30
+    private let folderCacheTTL: TimeInterval = 60
+    private let dimensionCacheTTL: TimeInterval = 300
+    private let folderCountCacheTTL: TimeInterval = 5
 
     // MARK: — Public API
 
     /// Get the logical file size for a URL. Returns nil if the file doesn't exist or can't be read.
     func fileSize(at url: URL) -> Int64? {
+        let standardizedURL = url.standardizedFileURL
         // Check cache first
         var cachedSize: Int64?
         cacheDispatchQueue.sync {
-            if let entry = cache[url],
+            if let entry = cache[standardizedURL],
                entry.timestamp + cacheTTL > Date().timeIntervalSinceReferenceDate {
                 cachedSize = Int64(entry.size)
             }
@@ -43,10 +57,10 @@ final class FileMetadataProvider {
         }
 
         do {
-            let resourceValues = try url.resourceValues(forKeys: [.fileSizeKey])
+            let resourceValues = try standardizedURL.resourceValues(forKeys: [.fileSizeKey])
             let size = resourceValues.fileSize ?? 0
             cacheDispatchQueue.sync {
-                cache[url] = (size: size, timestamp: Date().timeIntervalSinceReferenceDate)
+                cache[standardizedURL] = (size: size, timestamp: Date().timeIntervalSinceReferenceDate)
             }
             return Int64(size)
         } catch {
@@ -56,11 +70,51 @@ final class FileMetadataProvider {
 
     /// Get a human-readable size string using ByteCountFormatter.
     func formattedSize(at url: URL) -> String? {
-        if (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true {
+        let isDirectory = (try? url.resourceValues(
+            forKeys: [.isDirectoryKey]
+        ).isDirectory) == true
+        return formattedSize(at: url, isDirectory: isDirectory)
+    }
+
+    func formattedSize(at url: URL, isDirectory: Bool) -> String? {
+        if isDirectory {
             return formattedFolderSize(at: url)
         }
         guard let size = fileSize(at: url) else { return nil }
         return formatByteCount(size)
+    }
+
+    /// Cache-only lookup used by the render pass. It never touches the file
+    /// system, so positions can be reconciled without waiting for metadata.
+    func cachedFormattedSize(at url: URL, isDirectory: Bool) -> CachedMetadataLookup {
+        let standardizedURL = url.standardizedFileURL
+        let now = Date().timeIntervalSinceReferenceDate
+        if isDirectory {
+            var result = CachedMetadataLookup.miss
+            cacheDispatchQueue.sync {
+                if let entry = folderCache[standardizedURL],
+                   entry.timestamp + folderCacheTTL > now {
+                    result = .hit(entry.size.map(formatByteCount))
+                }
+            }
+            return result
+        }
+
+        var result = CachedMetadataLookup.miss
+        cacheDispatchQueue.sync {
+            if let entry = cache[standardizedURL],
+               entry.timestamp + cacheTTL > now {
+                result = .hit(formatByteCount(Int64(entry.size)))
+            }
+        }
+        return result
+    }
+
+    func isFolderSizeCalculationInFlight(at url: URL) -> Bool {
+        let standardizedURL = url.standardizedFileURL
+        return cacheDispatchQueue.sync {
+            folderCalculationsInFlight.contains(standardizedURL)
+        }
     }
 
     /// Folder totals are recursive and may be expensive. Return a cached value
@@ -176,6 +230,55 @@ final class FileMetadataProvider {
         return result
     }
 
+    func cachedFormattedPixelDimensions(at url: URL) -> CachedMetadataLookup {
+        let standardizedURL = url.standardizedFileURL
+        let now = Date().timeIntervalSinceReferenceDate
+        var result = CachedMetadataLookup.miss
+        cacheDispatchQueue.sync {
+            if let entry = dimensionCache[standardizedURL],
+               entry.timestamp + dimensionCacheTTL > now {
+                result = .hit(entry.value)
+            }
+        }
+        return result
+    }
+
+    func formattedFolderItemCount(at url: URL) -> String? {
+        let standardizedURL = url.standardizedFileURL
+        let count: Int?
+        do {
+            count = try FileManager.default.contentsOfDirectory(
+                at: standardizedURL,
+                includingPropertiesForKeys: nil,
+                options: []
+            ).count
+        } catch {
+            count = nil
+        }
+        cacheDispatchQueue.sync {
+            folderCountCache[standardizedURL] = (
+                count: count,
+                timestamp: Date().timeIntervalSinceReferenceDate
+            )
+        }
+        guard let count else { return nil }
+        return count > 999 ? "999+" : String(count)
+    }
+
+    func cachedFolderItemCount(at url: URL) -> CachedMetadataLookup {
+        let standardizedURL = url.standardizedFileURL
+        let now = Date().timeIntervalSinceReferenceDate
+        var result = CachedMetadataLookup.miss
+        cacheDispatchQueue.sync {
+            if let entry = folderCountCache[standardizedURL],
+               entry.timestamp + folderCountCacheTTL > now {
+                let text = entry.count.map { $0 > 999 ? "999+" : String($0) }
+                result = .hit(text)
+            }
+        }
+        return result
+    }
+
     private func formattedDimensions(width: NSNumber, height: NSNumber) -> String? {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
@@ -193,6 +296,7 @@ final class FileMetadataProvider {
             cache[url] = nil
             folderCache[url.standardizedFileURL] = nil
             dimensionCache[url.standardizedFileURL] = nil
+            folderCountCache[url.standardizedFileURL] = nil
             folderCalculationsInFlight.remove(url.standardizedFileURL)
         }
     }
@@ -203,6 +307,7 @@ final class FileMetadataProvider {
             cache.removeAll()
             folderCache.removeAll()
             dimensionCache.removeAll()
+            folderCountCache.removeAll()
             folderCalculationsInFlight.removeAll()
         }
     }
@@ -217,6 +322,10 @@ final class FileMetadataProvider {
             }
             dimensionCache = dimensionCache.filter {
                 $0.key.deletingLastPathComponent().path != directoryURL.path
+            }
+            folderCountCache = folderCountCache.filter {
+                $0.key.deletingLastPathComponent().path != directoryURL.path &&
+                $0.key.path != directoryURL.path
             }
         }
     }

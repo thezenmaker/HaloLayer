@@ -33,6 +33,7 @@ enum Confidence: Comparable {
 }
 
 struct OverlayLabel {
+    let url: URL
     let sizeText: String
     let detailText: String
     let position: CGPoint  // screen coordinates for label origin
@@ -40,12 +41,14 @@ struct OverlayLabel {
     let viewportFrame: CGRect?
 
     init(
+        url: URL,
         sizeText: String,
         detailText: String = "",
         position: CGPoint,
         frame: CGRect,
         viewportFrame: CGRect? = nil
     ) {
+        self.url = url
         self.sizeText = sizeText
         self.detailText = detailText
         self.position = position
@@ -55,17 +58,30 @@ struct OverlayLabel {
 }
 
 struct FolderCountBadge {
+    let url: URL
     let countText: String
     let frame: CGRect
     let viewportFrame: CGRect
 }
 
-private struct AXMappedItem {
-    let element: AXUIElement
+struct FinderItemLayout {
     let url: URL
     let frame: CGRect
     let metadataBottomY: CGFloat
     let viewportFrame: CGRect
+    let isDirectory: Bool
+
+}
+
+struct FinderLayoutSnapshot {
+    let items: [FinderItemLayout]
+    let viewportFrame: CGRect
+
+}
+
+struct FinderOverlayContent {
+    let labels: [OverlayLabel]
+    let folderBadges: [FolderCountBadge]
 }
 
 private struct ViewportKey: Hashable {
@@ -85,27 +101,21 @@ private struct ViewportKey: Hashable {
 final class FinderItemMapper {
     // MARK: — Public API
 
-    /// Map visible Finder items to their URLs and frames.
-    /// Returns an array of MappedFileItems with their screen positions.
-    /// The overlay labels (size text + position) are computed from the frames.
-    func mapVisibleItems(
+    /// Perform the expensive Accessibility traversal once. Labels and badges
+    /// are derived from this immutable geometry snapshot without touching AX.
+    func mapVisibleLayout(
         folderURL: URL,
         windowID: Int64,
         windowFrame: CGRect,
-        showSize: Bool = true,
-        showResolution: Bool = true,
         permissionController: AccessibilityPermissionController
-    ) -> [OverlayLabel] {
-
-        guard permissionController.checkPermission() == .granted else {
-            return []
-        }
+    ) -> FinderLayoutSnapshot? {
+        guard permissionController.checkPermission() == .granted else { return nil }
 
         // Get Finder process
         guard let finderApp = NSWorkspace.shared.runningApplications.first(
             where: { $0.bundleIdentifier == "com.apple.finder" }
         ) else {
-            return []
+            return nil
         }
 
         let finderPID = finderApp.processIdentifier
@@ -129,7 +139,7 @@ final class FinderItemMapper {
             finderAX, "AXWindows" as CFString, &windowsValue
         ) == .success,
         let windowsArray = windowsValue as? [AXUIElement] else {
-            return []
+            return nil
         }
 
         // Find the matching window
@@ -139,65 +149,132 @@ final class FinderItemMapper {
             folderURL: folderURL,
             windowFrame: windowFrame
         ) else {
-            return []
+            return nil
         }
 
         // Finder's hierarchy varies between macOS releases. Walk the window
         // recursively and keep elements that resolve to files in this folder.
-        let fileItems = collectFileItems(from: targetWindow, folderURL: folderURL)
+        let items = collectFileItems(from: targetWindow, folderURL: folderURL)
+        guard let viewportFrame = items.first?.viewportFrame else { return nil }
+        return FinderLayoutSnapshot(items: items, viewportFrame: viewportFrame)
+    }
 
-        // Map each file item to its URL and compute overlay position
-        let overlayLabels = fileItems.compactMap { item -> OverlayLabel? in
-            // Get file size
-            let sizeText = showSize
-                ? (FileMetadataProvider.shared.formattedSize(at: item.url) ?? "—")
-                : ""
-            let detailText = showResolution
-                ? (FileMetadataProvider.shared.formattedPixelDimensions(at: item.url) ?? "")
-                : ""
-            guard !sizeText.isEmpty || !detailText.isEmpty else { return nil }
+    /// Build render data from cached geometry and cache-only metadata lookups.
+    /// This method does no AX traversal and no filesystem or media I/O.
+    func overlayContent(
+        from snapshot: FinderLayoutSnapshot,
+        showSize: Bool,
+        showResolution: Bool,
+        showFolderCounts: Bool
+    ) -> FinderOverlayContent {
+        let provider = FileMetadataProvider.shared
+        let labels: [OverlayLabel] = (showSize || showResolution)
+            ? snapshot.items.compactMap { item in
+                let sizeLookup = showSize
+                    ? provider.cachedFormattedSize(
+                        at: item.url,
+                        isDirectory: item.isDirectory
+                    )
+                    : .hit("")
+                let resolutionLookup = showResolution && !item.isDirectory
+                    ? provider.cachedFormattedPixelDimensions(at: item.url)
+                    : .hit("")
+                let sizeText = sizeLookup.value ?? ""
+                let detailText = resolutionLookup.value ?? ""
 
-            // The deepest visible text descendant is either the filename or
-            // Finder's optional native item-info line. Place HaloLayer directly
-            // beneath whichever one Finder is currently drawing.
-            let labelHeight: CGFloat = 16
-            let spacing: CGFloat = 2
-            // Image dimensions need substantially more room than a byte count.
-            // Keep the row centered on the Finder item, but give the resolution
-            // enough width that values such as “2,906 × 4,484” are not clipped.
-            let labelWidth: CGFloat
-            if detailText.isEmpty {
-                labelWidth = min(max(item.frame.width + 32, 96), 112)
-            } else {
-                labelWidth = min(max(item.frame.width + 48, 112), 120)
+                let labelHeight: CGFloat = 16
+                let spacing: CGFloat = 2
+                // Reserve the final width before resolution metadata arrives,
+                // preventing the centered label from shifting when populated.
+                let labelWidth: CGFloat = showResolution
+                    ? min(max(item.frame.width + 48, 112), 120)
+                    : min(max(item.frame.width + 32, 96), 112)
+                let unclampedX = item.frame.midX - (labelWidth / 2)
+                let labelX = min(
+                    max(unclampedX, item.viewportFrame.minX),
+                    item.viewportFrame.maxX - labelWidth
+                )
+
+                let labelFrame = CGRect(
+                    x: labelX,
+                    y: item.metadataBottomY + spacing,
+                    width: labelWidth,
+                    height: labelHeight
+                )
+
+                guard item.viewportFrame.contains(labelFrame) else { return nil }
+
+                return OverlayLabel(
+                    url: item.url,
+                    sizeText: sizeText,
+                    detailText: detailText,
+                    position: item.frame.origin,
+                    frame: labelFrame,
+                    viewportFrame: item.viewportFrame
+                )
             }
-            let unclampedX = item.frame.midX - (labelWidth / 2)
-            let labelX = min(
-                max(unclampedX, item.viewportFrame.minX),
-                item.viewportFrame.maxX - labelWidth
-            )
+            : []
 
-            let labelFrame = CGRect(
-                x: labelX,
-                y: item.metadataBottomY + spacing,
-                width: labelWidth,
-                height: labelHeight
-            )
+        let badges: [FolderCountBadge] = showFolderCounts
+            ? snapshot.items.compactMap { item in
+                guard item.isDirectory else { return nil }
+                let countLookup = provider.cachedFolderItemCount(at: item.url)
+                guard countLookup.isCached, let text = countLookup.value else {
+                    return nil
+                }
+                let diameter: CGFloat = text.count > 3 ? 26 : 22
+                let badgeFrame = CGRect(
+                    x: item.frame.maxX - diameter * 0.72,
+                    y: item.frame.maxY - diameter * 0.82,
+                    width: diameter,
+                    height: diameter
+                )
+                guard item.viewportFrame.contains(badgeFrame) else { return nil }
+                return FolderCountBadge(
+                    url: item.url,
+                    countText: text,
+                    frame: badgeFrame,
+                    viewportFrame: item.viewportFrame
+                )
+            }
+            : []
 
-            // Do not draw partial labels at the viewport edges. They will
-            // appear on the next refresh once fully scrolled into view.
-            guard item.viewportFrame.contains(labelFrame) else { return nil }
+        return FinderOverlayContent(labels: labels, folderBadges: badges)
+    }
 
-            return OverlayLabel(
-                sizeText: sizeText,
-                detailText: detailText,
-                position: item.frame.origin,
-                frame: labelFrame,
-                viewportFrame: item.viewportFrame
-            )
+    /// Compatibility path used by diagnostics. Production rendering uses the
+    /// progressive cache-only `overlayContent` pipeline above.
+    func mapVisibleItems(
+        folderURL: URL,
+        windowID: Int64,
+        windowFrame: CGRect,
+        showSize: Bool = true,
+        showResolution: Bool = true,
+        permissionController: AccessibilityPermissionController
+    ) -> [OverlayLabel] {
+        guard let snapshot = mapVisibleLayout(
+            folderURL: folderURL,
+            windowID: windowID,
+            windowFrame: windowFrame,
+            permissionController: permissionController
+        ) else { return [] }
+        for item in snapshot.items {
+            if showSize {
+                _ = FileMetadataProvider.shared.formattedSize(
+                    at: item.url,
+                    isDirectory: item.isDirectory
+                )
+            }
+            if showResolution {
+                _ = FileMetadataProvider.shared.formattedPixelDimensions(at: item.url)
+            }
         }
-
-        return overlayLabels
+        return overlayContent(
+            from: snapshot,
+            showSize: showSize,
+            showResolution: showResolution,
+            showFolderCounts: false
+        ).labels
     }
 
     func mapVisibleFolderBadges(
@@ -206,49 +283,21 @@ final class FinderItemMapper {
         windowFrame: CGRect,
         permissionController: AccessibilityPermissionController
     ) -> [FolderCountBadge] {
-        guard permissionController.checkPermission() == .granted,
-              let finderApp = NSWorkspace.shared.runningApplications.first(
-                where: { $0.bundleIdentifier == "com.apple.finder" }
-              ) else { return [] }
-
-        let finderAX = AXUIElementCreateApplication(finderApp.processIdentifier)
-        var windowsValue: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(
-            finderAX, kAXWindowsAttribute as CFString, &windowsValue
-        ) == .success,
-        let windows = windowsValue as? [AXUIElement],
-        let targetWindow = findTargetWindow(
-            windows: windows,
-            windowID: windowID,
+        guard let snapshot = mapVisibleLayout(
             folderURL: folderURL,
-            windowFrame: windowFrame
+            windowID: windowID,
+            windowFrame: windowFrame,
+            permissionController: permissionController
         ) else { return [] }
-
-        return collectFileItems(from: targetWindow, folderURL: folderURL).compactMap { item in
-            guard (try? item.url.resourceValues(
-                forKeys: [.isDirectoryKey]
-            ).isDirectory) == true else { return nil }
-
-            let count = (try? FileManager.default.contentsOfDirectory(
-                at: item.url,
-                includingPropertiesForKeys: nil,
-                options: []
-            ).count) ?? 0
-            let text = count > 999 ? "999+" : String(count)
-            let diameter: CGFloat = text.count > 3 ? 26 : 22
-            let badgeFrame = CGRect(
-                x: item.frame.maxX - diameter * 0.72,
-                y: item.frame.maxY - diameter * 0.82,
-                width: diameter,
-                height: diameter
-            )
-            guard item.viewportFrame.contains(badgeFrame) else { return nil }
-            return FolderCountBadge(
-                countText: text,
-                frame: badgeFrame,
-                viewportFrame: item.viewportFrame
-            )
+        for item in snapshot.items where item.isDirectory {
+            _ = FileMetadataProvider.shared.formattedFolderItemCount(at: item.url)
         }
+        return overlayContent(
+            from: snapshot,
+            showSize: false,
+            showResolution: false,
+            showFolderCounts: true
+        ).folderBadges
     }
 
     // MARK: — Private helpers
@@ -310,7 +359,7 @@ final class FinderItemMapper {
         return firstStandardWindow
     }
 
-    private func collectFileItems(from root: AXUIElement, folderURL: URL) -> [AXMappedItem] {
+    private func collectFileItems(from root: AXUIElement, folderURL: URL) -> [FinderItemLayout] {
         let folderPath = folderURL.standardizedFileURL.path
         let contents = (try? FileManager.default.contentsOfDirectory(
             at: folderURL,
@@ -321,7 +370,7 @@ final class FinderItemMapper {
             ($0.lastPathComponent, $0)
         })
 
-        var bestItemByPath: [String: (item: AXMappedItem, area: CGFloat)] = [:]
+        var bestItemByPath: [String: (item: FinderItemLayout, area: CGFloat)] = [:]
         var visitedCount = 0
 
         func visit(_ element: AXUIElement, depth: Int, viewport: CGRect?) {
@@ -352,12 +401,15 @@ final class FinderItemMapper {
                     fileName: url.lastPathComponent,
                     limitedTo: currentViewport
                 )
-                let item = AXMappedItem(
-                    element: element,
+                let isDirectory = (try? url.resourceValues(
+                    forKeys: [.isDirectoryKey]
+                ).isDirectory) == true
+                let item = FinderItemLayout(
                     url: url,
                     frame: frame,
                     metadataBottomY: textBottom ?? frame.maxY,
-                    viewportFrame: currentViewport
+                    viewportFrame: currentViewport,
+                    isDirectory: isDirectory
                 )
                 if bestItemByPath[path] == nil || area > bestItemByPath[path]!.area {
                     bestItemByPath[path] = (item, area)

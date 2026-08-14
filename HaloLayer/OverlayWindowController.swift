@@ -9,9 +9,8 @@ final class OverlayWindowController {
     // MARK: — State
     private var overlayWindow: NSWindow?
     private var overlayContentView: NSView?
-    private var labelViews: [OverlayLabelView] = []
-    private var badgeViews: [FolderCountBadgeView] = []
-    private var cachedScrollTranslation = CGVector.zero
+    private var labelViews: [URL: OverlayLabelView] = [:]
+    private var badgeViews: [URL: FolderCountBadgeView] = [:]
 
     var isVisible: Bool { overlayWindow?.isVisible ?? false }
 
@@ -22,37 +21,16 @@ final class OverlayWindowController {
         return window.frame.contains(screenPoint)
     }
 
-    /// Move the cached overlay geometry in lockstep with Finder's scroll
-    /// gesture. The authoritative Accessibility mapping replaces these frames
-    /// after momentum settles.
-    func translateCachedContent(by delta: CGVector) {
-        dispatchPrecondition(condition: .onQueue(.main))
-        guard overlayWindow?.isVisible == true,
-              delta.dx != 0 || delta.dy != 0 else { return }
-
-        cachedScrollTranslation.dx += delta.dx
-        cachedScrollTranslation.dy += delta.dy
-
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        overlayContentView?.layer?.setAffineTransform(
-            CGAffineTransform(
-                translationX: cachedScrollTranslation.dx,
-                y: cachedScrollTranslation.dy
-            )
-        )
-        CATransaction.commit()
-    }
-
     // MARK: — Public API
 
     /// Show or update the overlay with the given labels.
     func update(
         over windowFrame: CGRect,
         labels: [OverlayLabel],
-        folderBadges: [FolderCountBadge]
+        folderBadges: [FolderCountBadge],
+        viewportFrame explicitViewportFrame: CGRect? = nil
     ) {
-        guard let viewportFrame = labels.first?.viewportFrame ?? folderBadges.first?.viewportFrame else {
+        guard let viewportFrame = explicitViewportFrame ?? labels.first?.viewportFrame ?? folderBadges.first?.viewportFrame else {
             hide()
             return
         }
@@ -75,29 +53,28 @@ final class OverlayWindowController {
         // The incoming Accessibility frames are authoritative. Clear the
         // temporary scroll transform in the same transaction in which those
         // frames are installed so reconciliation never animates or trails.
-        cachedScrollTranslation = .zero
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         overlayContentView?.layer?.setAffineTransform(.identity)
 
-        // Remove excess views
-        while labelViews.count > labels.count {
-            let removed = labelViews.removeLast()
-            removed.removeFromSuperview()
+        let incomingLabelURLs = Set(labels.map(\.url))
+        for url in Array(labelViews.keys) where !incomingLabelURLs.contains(url) {
+            labelViews.removeValue(forKey: url)?.removeFromSuperview()
         }
 
-        // Add or update views
-        for (i, label) in labels.enumerated() {
+        // Reconcile by file URL rather than AX traversal order. Finder can
+        // return the same visible items in a different order between scans.
+        for label in labels {
             let view: OverlayLabelView
-            if i < labelViews.count {
-                view = labelViews[i]
+            if let existing = labelViews[label.url] {
+                view = existing
             } else {
                 view = OverlayLabelView()
                 view.registeredLabel = label.sizeText
                 if let overlayContentView {
                     view.attach(to: overlayContentView)
                 }
-                labelViews.append(view)
+                labelViews[label.url] = view
             }
 
             view.frame = appKitGlobalFrame(fromAccessibilityFrame: label.frame).offsetBy(
@@ -109,17 +86,18 @@ final class OverlayWindowController {
             view.isHidden = false
         }
 
-        while badgeViews.count > folderBadges.count {
-            badgeViews.removeLast().removeFromSuperview()
+        let incomingBadgeURLs = Set(folderBadges.map(\.url))
+        for url in Array(badgeViews.keys) where !incomingBadgeURLs.contains(url) {
+            badgeViews.removeValue(forKey: url)?.removeFromSuperview()
         }
-        for (i, badge) in folderBadges.enumerated() {
+        for badge in folderBadges {
             let view: FolderCountBadgeView
-            if i < badgeViews.count {
-                view = badgeViews[i]
+            if let existing = badgeViews[badge.url] {
+                view = existing
             } else {
                 view = FolderCountBadgeView()
                 overlayContentView?.addSubview(view)
-                badgeViews.append(view)
+                badgeViews[badge.url] = view
             }
             view.frame = appKitGlobalFrame(
                 fromAccessibilityFrame: badge.frame
@@ -143,11 +121,10 @@ final class OverlayWindowController {
     /// Hide the overlay.
     func hide() {
         dispatchPrecondition(condition: .onQueue(.main))
-        labelViews.forEach { $0.removeFromSuperview() }
+        labelViews.values.forEach { $0.removeFromSuperview() }
         labelViews.removeAll()
-        badgeViews.forEach { $0.removeFromSuperview() }
+        badgeViews.values.forEach { $0.removeFromSuperview() }
         badgeViews.removeAll()
-        cachedScrollTranslation = .zero
         overlayContentView?.layer?.setAffineTransform(.identity)
         overlayWindow?.orderOut(self)
     }

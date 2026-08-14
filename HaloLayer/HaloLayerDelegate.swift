@@ -31,6 +31,23 @@ enum GettingStartedPresentationPolicy {
     }
 }
 
+private struct CachedFinderLayout {
+    let folderURL: URL
+    let windowID: Int64
+    let windowFrame: CGRect
+    var snapshot: FinderLayoutSnapshot
+    var mappedAt: CFTimeInterval
+
+    func matches(_ context: FinderContext) -> Bool {
+        folderURL.standardizedFileURL == context.folderURL.standardizedFileURL &&
+            windowID == context.windowID &&
+            abs(windowFrame.minX - context.windowFrame.minX) < 1 &&
+            abs(windowFrame.minY - context.windowFrame.minY) < 1 &&
+            abs(windowFrame.width - context.windowFrame.width) < 1 &&
+            abs(windowFrame.height - context.windowFrame.height) < 1
+    }
+}
+
 final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: — Core components
@@ -56,16 +73,25 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
     private var refreshTimer: Timer?
     private var scrollEventMonitor: Any?
     private var scrollDisplayLink: CADisplayLink?
-    private var pendingScrollTranslation = CGVector.zero
     private var isTrackingFinderScroll = false
     private var lastScrollEventTime: CFTimeInterval = 0
     private var navigationRetryWorkItem: DispatchWorkItem?
+    private var scrollReconcileWorkItem: DispatchWorkItem?
+    private var metadataRenderWorkItem: DispatchWorkItem?
+    private var cachedLayout: CachedFinderLayout?
+    private var metadataGeneration = 0
+    private var metadataLoadsInFlight: [URL: Int] = [:]
+    private let metadataQueue = DispatchQueue(
+        label: "com.korwerk.halolayer.progressive-metadata",
+        qos: .userInitiated
+    )
     private var presentedGuideThisLaunch = false
     // Navigation/content changes do not need display-rate AX tree scans. Live
     // scrolling has its own display-link path below.
     private let refreshInterval: TimeInterval = 1.0 / 8.0
     private let navigationSettleDelay: TimeInterval = 0.016
     private let scrollSettleDelay: CFTimeInterval = 0.085
+    private let layoutCacheTTL: CFTimeInterval = 1.5
     private let fileSizePreferenceKey = "fileSizeEnabled"
     private let resolutionPreferenceKey = "fileResolutionEnabled"
     private let folderCountsPreferenceKey = "folderCountLayerEnabled"
@@ -137,6 +163,9 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         }
         scrollDisplayLink?.invalidate()
         navigationRetryWorkItem?.cancel()
+        scrollReconcileWorkItem?.cancel()
+        metadataRenderWorkItem?.cancel()
+        metadataGeneration += 1
         overlayController.hide()
     }
 
@@ -381,47 +410,143 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         // retry, so never draw from this transient hierarchy.
         guard contextMonitor.state != .folderChanged else { return }
 
-        renderOverlay(for: context)
+        let now = CACurrentMediaTime()
+        if let cachedLayout,
+           cachedLayout.matches(context),
+           now - cachedLayout.mappedAt < layoutCacheTTL {
+            renderCachedLayout(scheduleMetadata: true)
+        } else {
+            renderOverlay(for: context)
+        }
     }
 
     private func renderOverlay(for context: FinderContext) {
-
-        // Check if Icon View
         if !contextMonitor.isIconView() {
+            invalidateLayoutCache()
             overlayController.hide()
             return
         }
 
-        // Map visible items
-        let labels = metadataLayerEnabled ? itemMapper.mapVisibleItems(
-            folderURL: context.folderURL, windowID: context.windowID,
+        guard let snapshot = itemMapper.mapVisibleLayout(
+            folderURL: context.folderURL,
+            windowID: context.windowID,
             windowFrame: context.windowFrame,
+            permissionController: permissionController
+        ) else {
+            // Finder frequently exposes a partial AX hierarchy while settling.
+            // Preserve the last valid overlay instead of flashing everything out.
+            return
+        }
+
+        cachedLayout = CachedFinderLayout(
+            folderURL: context.folderURL,
+            windowID: context.windowID,
+            windowFrame: context.windowFrame,
+            snapshot: snapshot,
+            mappedAt: CACurrentMediaTime()
+        )
+        metadataGeneration += 1
+        renderCachedLayout(scheduleMetadata: true)
+    }
+
+    private func renderCachedLayout(scheduleMetadata: Bool) {
+        guard let cachedLayout else { return }
+        let content = itemMapper.overlayContent(
+            from: cachedLayout.snapshot,
             showSize: isFileSizeEnabled,
             showResolution: isResolutionEnabled,
-            permissionController: permissionController
-        ) : []
-        let badges = isFolderCountsEnabled ? itemMapper.mapVisibleFolderBadges(
-            folderURL: context.folderURL, windowID: context.windowID,
-            windowFrame: context.windowFrame,
-            permissionController: permissionController
-        ) : []
-
-        // Only update if labels changed (non-empty from mapper = new data)
-        if !labels.isEmpty || !badges.isEmpty {
-            overlayController.update(
-                over: context.windowFrame,
-                labels: labels,
-                folderBadges: badges
-            )
-        } else {
-            overlayController.hide()
+            showFolderCounts: isFolderCountsEnabled
+        )
+        overlayController.update(
+            over: cachedLayout.windowFrame,
+            labels: content.labels,
+            folderBadges: content.folderBadges,
+            viewportFrame: cachedLayout.snapshot.viewportFrame
+        )
+        if scheduleMetadata {
+            scheduleProgressiveMetadata(for: cachedLayout.snapshot)
         }
+    }
+
+    private func invalidateLayoutCache() {
+        cachedLayout = nil
+        metadataGeneration += 1
+        metadataLoadsInFlight.removeAll()
+        metadataRenderWorkItem?.cancel()
+        metadataRenderWorkItem = nil
+    }
+
+    private func scheduleProgressiveMetadata(for snapshot: FinderLayoutSnapshot) {
+        let generation = metadataGeneration
+        let loadSize = isFileSizeEnabled
+        let loadResolution = isResolutionEnabled
+        let loadFolderCounts = isFolderCountsEnabled
+        let provider = FileMetadataProvider.shared
+
+        for item in snapshot.items {
+            let sizeMissing = loadSize && !provider.cachedFormattedSize(
+                at: item.url,
+                isDirectory: item.isDirectory
+            ).isCached
+            let resolutionMissing = loadResolution && !item.isDirectory &&
+                !provider.cachedFormattedPixelDimensions(at: item.url).isCached
+            let countMissing = loadFolderCounts && item.isDirectory &&
+                !provider.cachedFolderItemCount(at: item.url).isCached
+            guard sizeMissing || resolutionMissing || countMissing,
+                  metadataLoadsInFlight[item.url] != generation else { continue }
+
+            metadataLoadsInFlight[item.url] = generation
+            let itemURL = item.url
+            let isDirectory = item.isDirectory
+            metadataQueue.async { [weak self] in
+                guard let self else { return }
+                var awaitsFolderSize = false
+                if sizeMissing {
+                    _ = provider.formattedSize(
+                        at: itemURL,
+                        isDirectory: isDirectory
+                    )
+                    awaitsFolderSize = isDirectory &&
+                        provider.isFolderSizeCalculationInFlight(at: itemURL)
+                }
+                if resolutionMissing {
+                    _ = provider.formattedPixelDimensions(at: itemURL)
+                }
+                if countMissing {
+                    _ = provider.formattedFolderItemCount(at: itemURL)
+                }
+
+                DispatchQueue.main.async { [weak self] in
+                    guard let self else { return }
+                    if self.metadataLoadsInFlight[itemURL] == generation {
+                        self.metadataLoadsInFlight[itemURL] = nil
+                    }
+                    guard self.metadataGeneration == generation else { return }
+                    self.scheduleMetadataRender(
+                        after: awaitsFolderSize ? 0.5 : 0.016
+                    )
+                }
+            }
+        }
+    }
+
+    private func scheduleMetadataRender(after delay: TimeInterval = 0.016) {
+        guard metadataRenderWorkItem == nil else { return }
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.metadataRenderWorkItem = nil
+            self.renderCachedLayout(scheduleMetadata: true)
+        }
+        metadataRenderWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
     }
 
     private func handleFinderState(_ state: FinderContextState) {
         switch state {
         case .idle:
             navigationRetryWorkItem?.cancel()
+            scrollReconcileWorkItem?.cancel()
+            invalidateLayoutCache()
             overlayController.hide()
         case .monitoring:
             // Labels will be updated by the refresh timer
@@ -429,10 +554,14 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
         case .folderChanged:
             // Never leave the previous folder's geometry on screen while the
             // new Finder hierarchy is still settling.
+            scrollReconcileWorkItem?.cancel()
+            invalidateLayoutCache()
             overlayController.hide()
             scheduleNavigationRefresh()
         case .viewUnsupported:
             navigationRetryWorkItem?.cancel()
+            scrollReconcileWorkItem?.cancel()
+            invalidateLayoutCache()
             overlayController.hide()
         }
     }
@@ -485,7 +614,14 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        renderOverlay(for: context)
+        let now = CACurrentMediaTime()
+        if let cachedLayout,
+           cachedLayout.matches(context),
+           now - cachedLayout.mappedAt < layoutCacheTTL {
+            renderCachedLayout(scheduleMetadata: true)
+        } else {
+            renderOverlay(for: context)
+        }
     }
 
     // MARK: — Display-synchronous Finder scrolling
@@ -525,10 +661,17 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
     ) {
         guard translation.dx != 0 || translation.dy != 0,
               contextMonitor.isFinderActive,
-              overlayController.contains(screenPoint: pointerLocation) else { return }
+              isTrackingFinderScroll ||
+                overlayController.contains(screenPoint: pointerLocation) else { return }
 
-        pendingScrollTranslation.dx += translation.dx
-        pendingScrollTranslation.dy += translation.dy
+        if !isTrackingFinderScroll {
+            // Finder does not expose scroll geometry quickly enough for a
+            // stable overlay. Hide the complete layer for the gesture and
+            // reveal it only after a fresh, authoritative AX mapping.
+            scrollReconcileWorkItem?.cancel()
+            invalidateLayoutCache()
+            overlayController.hide()
+        }
         lastScrollEventTime = CACurrentMediaTime()
         isTrackingFinderScroll = true
         scrollDisplayLink?.isPaused = false
@@ -537,26 +680,30 @@ final class HaloLayerDelegate: NSObject, NSApplicationDelegate {
     @objc private func handleScrollDisplayLink(_ displayLink: CADisplayLink) {
         dispatchPrecondition(condition: .onQueue(.main))
 
-        let translation = pendingScrollTranslation
-        pendingScrollTranslation = .zero
-        overlayController.translateCachedContent(by: translation)
-
         guard isTrackingFinderScroll,
               CACurrentMediaTime() - lastScrollEventTime >= scrollSettleDelay else {
             return
         }
 
-        // Momentum has settled. Replace the translated cache with Finder's
-        // authoritative current frames before returning to normal polling.
+        // Momentum has settled. Re-read Finder once and reveal the layers at
+        // their authoritative positions; no stale geometry is shown between
+        // the gesture and this reconciliation.
         isTrackingFinderScroll = false
         displayLink.isPaused = true
-        contextMonitor.refresh()
-        guard contextMonitor.state == .monitoring,
-              let context = contextMonitor.currentContext else {
-            overlayController.hide()
-            return
+        scheduleScrollReconciliation()
+    }
+
+    private func scheduleScrollReconciliation() {
+        scrollReconcileWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self, !self.isTrackingFinderScroll else { return }
+            self.contextMonitor.refresh()
+            guard self.contextMonitor.state == .monitoring,
+                  let context = self.contextMonitor.currentContext else { return }
+            self.renderOverlay(for: context)
         }
-        renderOverlay(for: context)
+        scrollReconcileWorkItem = workItem
+        DispatchQueue.main.async(execute: workItem)
     }
 
     // MARK: — Layer preferences

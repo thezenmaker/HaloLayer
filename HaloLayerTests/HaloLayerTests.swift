@@ -26,6 +26,36 @@ final class FinderScrollMotionTests: XCTestCase {
     }
 }
 
+final class ProgressiveLayoutTests: XCTestCase {
+    func testColdMetadataStillProducesPositionedPlaceholder() {
+        let url = URL(fileURLWithPath: "/tmp/uncached-\(UUID().uuidString).png")
+        let viewport = CGRect(x: 0, y: 0, width: 500, height: 500)
+        let snapshot = FinderLayoutSnapshot(
+            items: [FinderItemLayout(
+                url: url,
+                frame: CGRect(x: 100, y: 100, width: 80, height: 80),
+                metadataBottomY: 200,
+                viewportFrame: viewport,
+                isDirectory: false
+            )],
+            viewportFrame: viewport
+        )
+
+        let content = FinderItemMapper().overlayContent(
+            from: snapshot,
+            showSize: true,
+            showResolution: true,
+            showFolderCounts: false
+        )
+
+        XCTAssertEqual(content.labels.count, 1)
+        XCTAssertEqual(content.labels[0].url, url)
+        XCTAssertEqual(content.labels[0].sizeText, "")
+        XCTAssertEqual(content.labels[0].detailText, "")
+        XCTAssertEqual(content.labels[0].frame.width, 120)
+    }
+}
+
 final class GettingStartedPresentationPolicyTests: XCTestCase {
     func testPresentsIncompleteGuideOncePerLaunch() {
         XCTAssertTrue(GettingStartedPresentationPolicy.shouldPresent(
@@ -253,6 +283,7 @@ final class FinderItemMapperTests: XCTestCase {
 
     func testOverlayLabelCreation() {
         let label = OverlayLabel(
+            url: URL(fileURLWithPath: "/tmp/test.txt"),
             sizeText: "428 KB",
             position: CGPoint(x: 100, y: 200),
             frame: CGRect(x: 100, y: 220, width: 80, height: 16)
